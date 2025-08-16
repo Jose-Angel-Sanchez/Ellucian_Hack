@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react"
+import { Loader2, Mail, Lock, User, Eye, EyeOff, AtSign } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { signUp } from "@/lib/actions"
@@ -74,6 +74,26 @@ export default function RegisterForm() {
                   className="pl-10 h-12 border-gray-300 focus:border-secondary focus:ring-secondary"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Nombre de Usuario
+              </label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  placeholder="tu_usuario"
+                  required
+                  pattern="[a-zA-Z0-9_]+"
+                  title="Solo letras, números y guiones bajos"
+                  className="pl-10 h-12 border-gray-300 focus:border-secondary focus:ring-secondary"
+                />
+              </div>
+              <p className="text-xs text-gray-500">Solo letras, números y guiones bajos</p>
             </div>
 
             <div className="space-y-2">

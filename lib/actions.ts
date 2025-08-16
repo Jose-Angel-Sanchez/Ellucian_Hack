@@ -44,24 +44,33 @@ export async function signUp(prevState: any, formData: FormData) {
   const email = formData.get("email")
   const password = formData.get("password")
   const fullName = formData.get("fullName")
+  const username = formData.get("username")
 
   if (!email || !password) {
     return { error: "Email and password are required" }
+  }
+
+  if (!username) {
+    return { error: "Username is required" }
   }
 
   const cookieStore = cookies()
   const supabase = createServerActionClient({ cookies: () => cookieStore })
 
   try {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+
     const { error } = await supabase.auth.signUp({
       email: email.toString(),
       password: password.toString(),
       options: {
-        emailRedirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-          `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard`,
+        emailRedirectTo: `${baseUrl}/dashboard`,
         data: {
           full_name: fullName?.toString() || "",
+          username: username?.toString() || "",
         },
       },
     })
@@ -70,7 +79,7 @@ export async function signUp(prevState: any, formData: FormData) {
       return { error: error.message }
     }
 
-    return { success: "Check your email to confirm your account and start learning!" }
+    return { success: "¡Revisa tu correo para confirmar tu cuenta y comenzar a aprender!" }
   } catch (error) {
     console.error("Sign up error:", error)
     return { error: "An unexpected error occurred. Please try again." }

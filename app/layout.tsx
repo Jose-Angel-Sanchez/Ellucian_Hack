@@ -22,6 +22,11 @@ export const metadata: Metadata = {
     "AI-powered learning platform that creates personalized study paths based on your level and goals. Learn efficiently with adaptive content and accessibility features.",
   keywords: ["learning", "education", "AI", "personalized", "courses", "accessibility"],
   generator: "v0.app",
+  icons: {
+    icon: [{ url: "/favicon.ico" }, { url: "/icon.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  manifest: "/manifest.json",
 }
 
 export default function RootLayout({

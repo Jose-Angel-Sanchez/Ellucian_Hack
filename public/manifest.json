@@ -1,0 +1,22 @@
+{
+  "name": "EduPath - Plataforma de Aprendizaje",
+  "short_name": "EduPath",
+  "description": "Plataforma de aprendizaje personalizado con IA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090225",
+  "theme_color": "#5F78E6",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

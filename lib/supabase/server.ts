@@ -17,9 +17,15 @@ export const createClient = cache(() => {
     console.warn("Supabase environment variables are not set. Using dummy client.")
     return {
       auth: {
-        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+        getUser: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not configured" } }),
+        getSession: () => Promise.resolve({ data: { session: null }, error: { message: "Supabase not configured" } }),
       },
+      from: () => ({
+        insert: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+        select: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+        update: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+        delete: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+      }),
     }
   }
 
