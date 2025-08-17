@@ -16,6 +16,24 @@ Your project is live at:
 
 **[https://vercel.com/joseangelsanchezs-projects/v0-no-content](https://vercel.com/joseangelsanchezs-projects/v0-no-content)**
 
+### Vercel frozen lockfile error
+
+If a build fails with:
+
+> ERR_PNPM_OUTDATED_LOCKFILE Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date
+
+You have two options:
+
+1) Update and commit the lockfile (preferred):
+
+	pnpm install
+	git add pnpm-lock.yaml
+	git commit -m "chore: update lockfile"
+
+2) Allow installs without a frozen lockfile in CI (configured here via vercel.json):
+
+	installCommand: pnpm install --no-frozen-lockfile
+
 ## Build your app
 
 Continue building your app on:
