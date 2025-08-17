@@ -20,7 +20,7 @@ export async function signIn(prevState: any, formData: FormData) {
   const supabase = createServerActionClient({ cookies: () => cookieStore })
 
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.toString(),
       password: password.toString(),
     })
@@ -29,7 +29,10 @@ export async function signIn(prevState: any, formData: FormData) {
       return { error: error.message }
     }
 
-    return { success: true }
+    const emailAddr = data?.user?.email || data?.session?.user?.email || ""
+    const isAdmin = !!emailAddr?.includes("@alumno.buap.mx")
+
+    return { success: true, isAdmin }
   } catch (error) {
     console.error("Login error:", error)
     return { error: "An unexpected error occurred. Please try again." }
@@ -62,6 +65,17 @@ export async function signUp(prevState: any, formData: FormData) {
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
       (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+
+    // Primero verificamos si el usuario ya existe
+    const { data: existingUser } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username.toString())
+      .single()
+
+    if (existingUser) {
+      return { error: "Este nombre de usuario ya está en uso" }
+    }
 
     const { error } = await supabase.auth.signUp({
       email: email.toString(),

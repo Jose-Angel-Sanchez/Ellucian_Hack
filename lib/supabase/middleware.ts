@@ -11,6 +11,11 @@ const publicRoutes = [
   "/favicon.ico",
 ]
 
+const adminRoutes = [
+  "/admin/courses",
+  "/admin/content"
+]
+
 // In-memory cache with expiration
 const cache = new Map<string, { value: any; expires: number }>()
 const CACHE_TTL = 10000 // 10 seconds
@@ -72,8 +77,9 @@ export async function updateSession(request: NextRequest) {
 
     // Check for auth code in URL
     const requestUrl = new URL(request.url)
-    const authCode = requestUrl.searchParams.get("code")
-    const next = requestUrl.searchParams.get("next") || "/dashboard"
+  const authCode = requestUrl.searchParams.get("code")
+  // Don't default here; we'll decide after exchanging code based on user role
+  const next = requestUrl.searchParams.get("next") || null
 
     // Handle OAuth callback
     if (authCode) {
@@ -83,7 +89,15 @@ export async function updateSession(request: NextRequest) {
           res: response,
         })
         await supabase.auth.exchangeCodeForSession(authCode)
-        return NextResponse.redirect(new URL(next, request.url))
+
+        // After session is created, decide default redirect when `next` is not provided
+        let destination = next
+        if (!destination) {
+          const { data: { user } } = await supabase.auth.getUser()
+          const isAdmin = !!user?.email?.includes("@alumno.buap.mx")
+          destination = isAdmin ? "/admin/courses" : "/dashboard"
+        }
+        return NextResponse.redirect(new URL(destination, request.url))
       } catch (error) {
         console.error("Auth code exchange error:", error)
         return NextResponse.redirect(new URL("/auth/login", request.url))
@@ -95,11 +109,21 @@ export async function updateSession(request: NextRequest) {
       (route) => request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith(route)
     )
 
+    // Check if the route is admin-only
+    const isAdminRoute = adminRoutes.some(
+      (route) => request.nextUrl.pathname.startsWith(route)
+    )
+
     // Redirect to login if accessing protected route without session
     if (!isPublicRoute && !session) {
       const loginUrl = new URL("/auth/login", request.url)
       loginUrl.searchParams.set("next", request.nextUrl.pathname)
       return NextResponse.redirect(loginUrl)
+    }
+
+    // Redirect to dashboard if accessing admin route without proper permissions
+  if (isAdminRoute && (!session?.user?.email?.includes("@alumno.buap.mx"))) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
     }
 
     // Return the response with updated cookies
