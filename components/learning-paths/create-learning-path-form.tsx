@@ -96,11 +96,17 @@ export default function CreateLearningPathForm({ user, profile, courses }: Creat
         }),
       })
 
+      const result = await response.json()
+      
       if (!response.ok) {
-        throw new Error("Error saving learning path")
+        const errorMessage = result.error || "Error saving learning path"
+        throw new Error(errorMessage)
       }
 
-      const result = await response.json()
+      if (!result.success || !result.pathId) {
+        throw new Error("Invalid response from server")
+      }
+
       router.push(`/learning-paths/${result.pathId}`)
     } catch (error) {
       console.error("Error saving learning path:", error)

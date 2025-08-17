@@ -51,6 +51,11 @@ export const isSupabaseConfigured =
   typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string" &&
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
 
+// Create an async function to get cookies
+async function getCookieStore() {
+  return cookies()
+}
+
 // Create a cached version of the Supabase client for Server Components
 export const createClient = cache(() => {
   if (!isSupabaseConfigured) {
@@ -63,10 +68,8 @@ export const createClient = cache(() => {
     }
   }
 
-  const cookieStore = cookies()
-  
-  // Create the client with cookie store
-  return createServerComponentClient<Database>({ 
-    cookies: () => cookieStore
+  // Create the client with async cookies
+  return createServerComponentClient<Database>({
+    cookies: getCookieStore
   })
 })

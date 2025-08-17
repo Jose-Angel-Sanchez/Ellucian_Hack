@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, type Database } from "@/lib/supabase/server"
+import { SupabaseClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,39 +8,87 @@ import { Progress } from "@/components/ui/progress"
 import { Brain, Clock, BookOpen, Target, Plus, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
+type LearningPath = Database['public']['Tables']['learning_paths']['Row'] & {
+  user_progress: Array<{
+    progress_percentage: number
+    status: string
+    courses: {
+      title: string
+      category: string
+    }
+  }>
+}
+
 export default async function LearningPathsPage() {
-  const supabase = createClient()
+  const supabase = createClient() as SupabaseClient<Database>
+  let learningPaths: LearningPath[] = []
 
-  // Check authentication
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    // Check authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect("/auth/login")
-  }
+    if (authError) {
+      console.error("Authentication error:", authError)
+      redirect("/auth/login")
+    }
 
-  // Get user's learning paths with progress
-  const { data: learningPaths } = await supabase
-    .from("learning_paths")
-    .select(`
-      *,
-      user_progress (
-        progress_percentage,
-        status,
-        courses (
-          title,
-          category
+    if (!user) {
+      redirect("/auth/login")
+    }
+
+    // Get user's learning paths with progress
+    const { data: learningPathsData, error: fetchError } = await supabase
+      .from("learning_paths")
+      .select(`
+        *,
+        user_progress (
+          progress_percentage,
+          status,
+          courses (
+            title,
+            category
+          )
         )
-      )
-    `)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
+      `)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
 
-  const calculatePathProgress = (path: any) => {
+    if (fetchError) {
+      console.error("Error fetching learning paths:", fetchError)
+      throw new Error(`Failed to load learning paths: ${fetchError.message}`)
+    }
+
+    if (!learningPathsData) {
+      console.error("No learning paths data returned")
+      throw new Error("No learning paths data available")
+    }
+
+    learningPaths = learningPathsData as LearningPath[]
+  } catch (error) {
+    console.error("Error in learning paths page:", error)
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+    return (
+      <div className="container mx-auto py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold mb-4 text-red-800">Error Loading Learning Paths</h1>
+          <p className="text-red-600 mb-4">{errorMessage}</p>
+          <Button asChild variant="outline" className="mt-2">
+            <Link href="/dashboard">
+              Return to Dashboard
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+  
+  const calculatePathProgress = (path: LearningPath) => {
     if (!path.user_progress || path.user_progress.length === 0) return 0
     const totalProgress = path.user_progress.reduce(
-      (sum: number, progress: any) => sum + progress.progress_percentage,
+      (sum: number, progress) => sum + progress.progress_percentage,
       0,
     )
     return Math.round(totalProgress / path.user_progress.length)
@@ -99,7 +148,7 @@ export default async function LearningPathsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {learningPaths && learningPaths.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {learningPaths.map((path) => {
+            {learningPaths.map((path: LearningPath) => {
               const progress = calculatePathProgress(path)
               const courseCount = path.path_data?.courses?.length || 0
               const estimatedDuration = path.path_data?.estimatedDuration || 0

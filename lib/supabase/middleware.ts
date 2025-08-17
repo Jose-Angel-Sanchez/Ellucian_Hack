@@ -1,62 +1,69 @@
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse, type NextRequest } from "next/server"
 
-// Check if Supabase environment variables are available
-export const isSupabaseConfigured =
-  typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL.length > 0 &&
-  typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
+const publicRoutes = [
+  "/",
+  "/auth/login",
+  "/auth/register",
+  "/api/test-gemini",
+  "/_next",
+  "/favicon.ico",
+]
 
 export async function updateSession(request: NextRequest) {
-  // If Supabase is not configured, just continue without auth
-  if (!isSupabaseConfigured) {
-    return NextResponse.next({
-      request,
+  try {
+    // Create a response to modify
+    const response = NextResponse.next()
+    
+    // Create the Supabase client
+    const supabase = createMiddlewareClient({ 
+      req: request, 
+      res: response 
     })
-  }
 
-  const res = NextResponse.next()
+    // Refresh the session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-  // Create a Supabase client configured to use cookies
-  const supabase = createMiddlewareClient({ req: request, res })
-
-  // Check if this is an auth callback
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
-
-  if (code) {
-    // Exchange the code for a session
-    await supabase.auth.exchangeCodeForSession(code)
-    // Redirect to dashboard after successful auth
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  // Refresh session if expired - required for Server Components
-  await supabase.auth.getSession()
-
-  // Protected routes - redirect to login if not authenticated
-  const isAuthRoute =
-    request.nextUrl.pathname.startsWith("/auth/login") ||
-    request.nextUrl.pathname.startsWith("/auth/register") ||
-    request.nextUrl.pathname === "/auth/callback" ||
-    request.nextUrl.pathname === "/"
-
-  const isProtectedRoute =
-    request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/courses") ||
-    request.nextUrl.pathname.startsWith("/learning-paths")
-
-  if (isProtectedRoute) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session) {
-      const redirectUrl = new URL("/auth/login", request.url)
-      return NextResponse.redirect(redirectUrl)
+    if (sessionError) {
+      console.error("Session error:", sessionError)
+      return NextResponse.redirect(new URL("/auth/login", request.url))
     }
-  }
 
-  return res
+    // Check for auth code in URL
+    const requestUrl = new URL(request.url)
+    const authCode = requestUrl.searchParams.get("code")
+    const next = requestUrl.searchParams.get("next") || "/dashboard"
+
+    // Handle OAuth callback
+    if (authCode) {
+      try {
+        await supabase.auth.exchangeCodeForSession(authCode)
+        return NextResponse.redirect(new URL(next, request.url))
+      } catch (error) {
+        console.error("Auth code exchange error:", error)
+        return NextResponse.redirect(new URL("/auth/login", request.url))
+      }
+    }
+
+    // Check if the route is public
+    const isPublicRoute = publicRoutes.some(route => 
+      request.nextUrl.pathname === route || 
+      request.nextUrl.pathname.startsWith(route)
+    )
+
+    // Redirect to login if accessing protected route without session
+    if (!isPublicRoute && !session) {
+      const loginUrl = new URL("/auth/login", request.url)
+      loginUrl.searchParams.set("next", request.nextUrl.pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    // Return the response with updated cookies
+    return response
+
+  } catch (error) {
+    console.error("Middleware error:", error)
+    // En caso de error, redirigir a login
+    return NextResponse.redirect(new URL("/auth/login", request.url))
+  }
 }

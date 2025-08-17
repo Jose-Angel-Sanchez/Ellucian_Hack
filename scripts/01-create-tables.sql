@@ -127,9 +127,27 @@ CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);
 -- Create function to handle profile creation
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  user_email TEXT;
+  user_name TEXT;
 BEGIN
-  INSERT INTO profiles (id, email, full_name)
-  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+  -- Get email from either email or raw_user_meta_data
+  user_email := COALESCE(
+    NEW.email,
+    NEW.raw_user_meta_data->>'email',
+    'no-email'
+  );
+  
+  -- Get name from either raw_user_meta_data or default to email
+  user_name := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name',
+    split_part(user_email, '@', 1)
+  );
+
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (NEW.id, user_email, user_name);
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
