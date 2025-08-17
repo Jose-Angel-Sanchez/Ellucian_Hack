@@ -32,15 +32,15 @@ function SubmitButton() {
   )
 }
 
-export default function LoginForm() {
-  const router = useRouter()
+export default function SuperloginForm(){
+ const router = useRouter()
   const [state, formAction] = useActionState(signIn, null)
   const [showPassword, setShowPassword] = useState(false)
 
   // Handle successful login by redirecting
   useEffect(() => {
     if (state?.success) {
-      router.push("/dashboard")
+      router.push("/superusers")
     }
   }, [state, router])
 
@@ -107,15 +107,9 @@ export default function LoginForm() {
           <SubmitButton />
 
           <div className="text-center text-gray-600">
-            ¿No tienes una cuenta?{" "}
+            ¿No tienes Acceso?{" "}
             <Link href="/auth/register" className="text-primary hover:text-primary-hover font-medium">
-              Regístrate aquí
-            </Link>
-          </div>
-          <div className="text-center text-gray-600">
-            Contribullentes {" "}
-            <Link href="/auth/slogin" className="text-primary hover:text-primary-hover font-medium">
-              ingresen aquí
+              Contacte support
             </Link>
           </div>
         </form>
