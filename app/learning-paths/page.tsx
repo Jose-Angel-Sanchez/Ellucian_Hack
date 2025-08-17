@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Brain, Clock, BookOpen, Target, Plus, ArrowRight } from "lucide-react"
+import { computeRoadmapPercent } from "@/lib/roadmap/progress"
 import Link from "next/link"
 
 type LearningPath = Database['public']['Tables']['learning_paths']['Row'] & {
@@ -18,6 +19,8 @@ type LearningPath = Database['public']['Tables']['learning_paths']['Row'] & {
     }
   }>
 }
+
+export const dynamic = "force-dynamic"
 
 export default async function LearningPathsPage() {
   const supabase = createClient() as SupabaseClient<Database>
@@ -86,12 +89,32 @@ export default async function LearningPathsPage() {
   }
   
   const calculatePathProgress = (path: LearningPath) => {
-    if (!path.user_progress || path.user_progress.length === 0) return 0
-    const totalProgress = path.user_progress.reduce(
-      (sum: number, progress) => sum + progress.progress_percentage,
-      0,
-    )
-    return Math.round(totalProgress / path.user_progress.length)
+    if (path.user_progress && path.user_progress.length > 0) {
+      const totalProgress = path.user_progress.reduce(
+        (sum: number, progress) => sum + (progress.progress_percentage || 0),
+        0,
+      )
+      return Math.round(totalProgress / path.user_progress.length)
+    }
+    // Fallback: compute from roadmap if available
+    const roadmap = (path as any).path_data?.roadmap
+    return computeRoadmapPercent(roadmap)
+  }
+
+  const getResourceCounts = (path: LearningPath) => {
+    const weeks = (path as any).path_data?.roadmap?.weeks
+    if (!Array.isArray(weeks) || weeks.length === 0) return { done: 0, total: 0 }
+    let done = 0
+    let total = 0
+    for (const w of weeks) {
+      const res = Array.isArray(w?.resources) ? w.resources : []
+      if (res.length === 0) continue
+      total += res.length
+      for (const r of res) {
+        if (r?.completed === true || w?.completed === true) done += 1
+      }
+    }
+    return { done, total }
   }
 
   const getStatusColor = (status: string) => {
@@ -125,31 +148,22 @@ export default async function LearningPathsPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Mis Rutas de Aprendizaje</h1>
               <p className="text-gray-600 mt-2">Rutas personalizadas creadas con IA para alcanzar tus objetivos</p>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
-                <Button variant="outline">Volver al Dashboard</Button>
-              </Link>
-              <Link href="/learning-paths/create">
-                <Button className="bg-primary hover:bg-primary-hover text-white">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nueva Ruta
-                </Button>
-              </Link>
-            </div>
+            {/* Acciones ahora en el navbar (hamburguesa en mobile) */}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {learningPaths && learningPaths.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {learningPaths.map((path: LearningPath) => {
               const progress = calculatePathProgress(path)
+              const counts = getResourceCounts(path)
               const courseCount = path.path_data?.courses?.length || 0
               const estimatedDuration = path.path_data?.estimatedDuration || 0
 
@@ -185,7 +199,12 @@ export default async function LearningPathsPage() {
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium text-gray-700">Progreso</span>
-                          <span className="text-sm text-gray-500">{progress}%</span>
+                          <span className="text-sm text-gray-500">
+                            {progress}%{" "}
+                            {counts.total > 0 && (
+                              <span className="text-xs text-gray-400">· {counts.done}/{counts.total} recursos</span>
+                            )}
+                          </span>
                         </div>
                         <Progress value={progress} className="h-2" />
                       </div>

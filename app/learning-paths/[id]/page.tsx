@@ -1,4 +1,5 @@
 import { createClient, type Database } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
@@ -6,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import RoadmapClient from "@/components/learning-paths/roadmap-client"
+import { computeRoadmapPercent } from "@/lib/roadmap/progress"
 import { Brain, Clock, BookOpen, ArrowLeft } from "lucide-react"
 
 type LearningPathRow = Database["public"]["Tables"]["learning_paths"]["Row"]
@@ -42,9 +45,38 @@ export default async function LearningPathDetailPage({ params }: { params: { id:
   const difficulty: string = data.difficulty || "-"
   const estimatedDuration: number = data.estimatedDuration || 0
   const courses: Array<{ course: any; reason?: string }> = Array.isArray(data.courses) ? data.courses : []
+  const roadmap = data.roadmap && Array.isArray(data.roadmap.weeks) ? data.roadmap : { weeks: [] }
 
-  // Derive simple progress from count completed in future (placeholder 0 for now)
-  const progress = 0
+  // Compute progress: prefer user_progress; fallback to roadmap percent
+  let progress = 0
+  try {
+    const { data: prog } = await supabase
+      .from("user_progress")
+      .select("progress_percentage")
+      .eq("user_id", user!.id)
+      .eq("learning_path_id", path.id)
+
+    if (prog && prog.length > 0) {
+      const sum = prog.reduce((acc: number, p: any) => acc + (p.progress_percentage || 0), 0)
+      progress = Math.round(sum / prog.length)
+    } else {
+      progress = computeRoadmapPercent(roadmap)
+    }
+  } catch {
+    progress = computeRoadmapPercent(roadmap)
+  }
+
+  // Determine if user is SSO (can upload videos). If admin client missing, default to false
+  let canUpload = false
+  try {
+    const admin = createAdminClient()
+    if (admin) {
+      const { data: au } = await admin.auth.admin.getUserById(user!.id)
+      canUpload = (au?.user as any)?.is_sso_user === true
+    }
+  } catch {
+    canUpload = false
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -83,42 +115,22 @@ export default async function LearningPathDetailPage({ params }: { params: { id:
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
-            {courses.length > 0 ? (
-              courses.map((ci, index) => (
-                <Card key={ci.course?.id || index}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <span className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white text-sm font-medium">
-                        {index + 1}
-                      </span>
-                      <span>{ci.course?.title || "Curso"}</span>
-                    </CardTitle>
-                    <CardDescription>
-                      {ci.reason || "Seleccionado por la IA para tu objetivo"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      {ci.course?.category && (
-                        <Badge variant="outline" className="text-xs">
-                          {ci.course.category}
-                        </Badge>
-                      )}
-                      {typeof ci.course?.estimated_duration === "number" && (
-                        <span>{Math.floor(ci.course.estimated_duration / 60)}h</span>
-                      )}
-                      {ci.course?.difficulty_level && <span>{ci.course.difficulty_level}</span>}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Sin cursos</CardTitle>
-                  <CardDescription>Esta ruta aún no contiene cursos.</CardDescription>
-                </CardHeader>
-              </Card>
+            {/* Roadmap client with typing animation and no raw JSON display */}
+            <RoadmapClient pathId={path.id} initialRoadmap={roadmap} courses={courses} />
+
+            {canUpload && (
+              <div className="flex items-center gap-2">
+                <form
+                  action={`/api/learning-paths/${path.id}/upload-video`}
+                  method="post"
+                  encType="multipart/form-data"
+                  className="flex items-center gap-2"
+                >
+                  <input type="file" name="file" accept="video/*" className="text-sm" />
+                  <input type="text" name="title" placeholder="Título del video" className="text-sm border px-2 py-1 rounded" />
+                  <Button type="submit" variant="outline">Subir Video (Superusuario)</Button>
+                </form>
+              </div>
             )}
           </div>
 

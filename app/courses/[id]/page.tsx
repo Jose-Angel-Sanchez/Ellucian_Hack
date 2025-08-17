@@ -27,24 +27,22 @@ export default async function CoursePage({ params }: CoursePageProps) {
   }
 
   // Fetch course details
-  const { data: course, error } = await supabase
-    .from("courses")
+  const { data: course, error } = await ((supabase.from("courses") as any)
     .select("*")
     .eq("id", params.id)
     .eq("is_active", true)
-    .single()
+    .single())
 
   if (error || !course) {
     notFound()
   }
 
   // Check if user is enrolled and get progress
-  const { data: userProgress } = await supabase
-    .from("user_progress")
+  const { data: userProgress } = await ((supabase.from("user_progress") as any)
     .select("*")
     .eq("user_id", user.id)
     .eq("course_id", course.id)
-    .single()
+    .single())
 
   const getDifficultyColor = (level: string) => {
     switch (level) {
@@ -80,16 +78,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center space-x-4 mb-4">
-            <Link href="/courses">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver a Cursos
-              </Button>
-            </Link>
-          </div>
+          {/* Navegación en navbar (hamburguesa en mobile) */}
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Course Info */}
             <div className="lg:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
@@ -136,7 +127,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
             {/* Enrollment Card */}
             <div className="lg:col-span-1">
-              <Card className="sticky top-6">
+              <Card className="lg:sticky lg:top-6">
                 <CardHeader>
                   <CardTitle className="text-2xl">{isEnrolled ? "Continuar Aprendiendo" : "Comenzar Curso"}</CardTitle>
                   <CardDescription>

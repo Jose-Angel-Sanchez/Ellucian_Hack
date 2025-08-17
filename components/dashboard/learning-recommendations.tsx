@@ -63,25 +63,46 @@ export default function LearningRecommendations({ userProgress, profile, courses
 
   const recommendations = generateRecommendations()
 
-  // AI-powered insights
+  // User-driven insights (derived from activity)
+  const mostAdvanced = userProgress?.length
+    ? [...userProgress].sort((a, b) => (b.progress_percentage || 0) - (a.progress_percentage || 0))[0]
+    : null
+  const lastAccess = userProgress?.length
+    ? [...userProgress].sort(
+        (a, b) => new Date(b.last_accessed).getTime() - new Date(a.last_accessed).getTime(),
+      )[0]
+    : null
+  const byCat: Record<string, number> = {}
+  userProgress?.forEach((p) => {
+    const c = p.courses?.category
+    if (c) byCat[c] = (byCat[c] || 0) + (p.time_spent || 0)
+  })
+  const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0]
   const aiInsights = [
     {
-      title: "Momento Ideal para Estudiar",
-      description: "Basado en tu actividad, recomendamos estudiar entre 9:00-11:00 AM para máxima retención.",
-      action: "Configurar Recordatorio",
-      type: "schedule",
-    },
-    {
-      title: "Próximo Hito",
-      description: "Estás a solo 2 lecciones de completar tu curso actual. ¡Sigue así!",
-      action: "Continuar Curso",
+      title: "Curso más avanzado",
+      description: mostAdvanced
+        ? `${mostAdvanced.courses?.title} va en ${mostAdvanced.progress_percentage || 0}%`
+        : "Aún no hay progreso registrado",
+      action: mostAdvanced ? "Continuar Curso" : "Explorar Cursos",
       type: "progress",
+      href: mostAdvanced ? `/learn/${mostAdvanced.course_id}` : "/courses",
     },
     {
-      title: "Nueva Ruta Sugerida",
-      description: "Detectamos interés en IA. ¿Te gustaría una ruta personalizada en Machine Learning?",
-      action: "Crear Ruta",
+      title: "Última actividad",
+      description: lastAccess?.last_accessed
+        ? `Tu última sesión fue el ${new Date(lastAccess.last_accessed).toLocaleDateString()}`
+        : "Sin actividad reciente",
+      action: lastAccess ? "Reanudar" : "Comenzar",
+      type: "schedule",
+      href: lastAccess ? `/learn/${lastAccess.course_id}` : "/courses",
+    },
+    {
+      title: "Categoría favorita",
+      description: topCat ? `Has invertido más tiempo en ${topCat[0]}` : "Descubre tu próxima categoría",
+      action: "Ver Cursos",
       type: "path",
+      href: "/courses",
     },
   ]
 
@@ -107,9 +128,11 @@ export default function LearningRecommendations({ userProgress, profile, courses
                   <h4 className="font-medium text-sm mb-1">{insight.title}</h4>
                   <p className="text-xs text-gray-600">{insight.description}</p>
                 </div>
-                <Button size="sm" variant="outline" className="ml-4 bg-transparent">
-                  {insight.action}
-                </Button>
+                <Link href={insight.href}>
+                  <Button size="sm" variant="outline" className="ml-4 bg-transparent">
+                    {insight.action}
+                  </Button>
+                </Link>
               </div>
             ))}
           </div>

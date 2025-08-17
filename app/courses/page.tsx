@@ -19,11 +19,11 @@ export default async function CoursesPage() {
   }
 
   // Fetch courses
-  const { data: courses, error } = await supabase
-    .from("courses")
+  const { data: courses, error } = await ((supabase
+    .from("courses") as any)
     .select("*")
     .eq("is_active", true)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false }))
 
   if (error) {
     console.error("Error fetching courses:", error)
@@ -60,14 +60,12 @@ export default async function CoursesPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Catálogo de Cursos</h1>
               <p className="text-gray-600 mt-2">Descubre cursos diseñados para tu nivel y objetivos</p>
             </div>
-            <Link href="/dashboard">
-              <Button variant="outline">Volver al Dashboard</Button>
-            </Link>
+            {/* Acciones ahora en el navbar (hamburguesa en mobile) */}
           </div>
         </div>
       </div>
@@ -96,8 +94,8 @@ export default async function CoursesPage() {
         </div>
 
         {/* Courses Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses?.map((course) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses?.map((course: any) => (
             <Card key={course.id} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader>
                 <div className="flex justify-between items-start mb-2">

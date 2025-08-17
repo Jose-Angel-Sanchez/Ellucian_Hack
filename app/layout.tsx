@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import AccessibilityToolbar from "@/components/accessibility/accessibility-toolbar"
+import SiteNavbar from "@/components/site-navbar"
+import { createClient } from "@/lib/supabase/server"
 
 const googleSansCode = Inter({
   subsets: ["latin"],
@@ -29,11 +31,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   return (
     <html lang="es" className={`${googleSansCode.variable} ${inter.variable} antialiased`}>
       <head>
@@ -52,7 +56,8 @@ export default function RootLayout({
           </a>
         </div>
 
-        <main id="main-content" role="main">
+  <SiteNavbar user={user} />
+  <main id="main-content" role="main">
           {children}
         </main>
 

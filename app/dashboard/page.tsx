@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, Clock, Award, TrendingUp, Play, Plus, Target } from "lucide-react"
+import { BookOpen, Clock, Award, Play, Plus, Target } from "lucide-react"
 import Link from "next/link"
 import { signOut } from "@/lib/actions"
 import ProgressAnalytics from "@/components/dashboard/progress-analytics"
@@ -23,12 +23,10 @@ export default async function DashboardPage() {
   }
 
   // Get user profile
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+  const { data: profile } = (await (supabase.from("profiles") as any).select("*").eq("id", user.id).single()) as any
 
   // Get user's enrolled courses with progress
-  const { data: userProgress } = await supabase
-    .from("user_progress")
-    .select(`
+  const userProgressQ = ((supabase.from("user_progress") as any).select(`
       *,
       courses (
         id,
@@ -38,24 +36,24 @@ export default async function DashboardPage() {
         difficulty_level,
         estimated_duration
       )
-    `)
+    `) as any)
+  const { data: userProgress } = (await userProgressQ
     .eq("user_id", user.id)
-    .order("last_accessed", { ascending: false })
+    .order("last_accessed", { ascending: false })) as any
 
   // Get recent courses for recommendations
-  const { data: recentCourses } = await supabase
-    .from("courses")
-    .select("*")
+  const recentCoursesQ = ((supabase.from("courses") as any).select("*") as any)
+  const { data: recentCourses } = (await recentCoursesQ
     .eq("is_active", true)
     .order("created_at", { ascending: false })
-    .limit(6)
+    .limit(6)) as any
 
-  const completedCourses = userProgress?.filter((p) => p.status === "completed").length || 0
-  const inProgressCourses = userProgress?.filter((p) => p.status === "in_progress").length || 0
-  const totalTimeSpent = userProgress?.reduce((total, p) => total + (p.time_spent || 0), 0) || 0
+  const completedCourses = userProgress?.filter((p: any) => p.status === "completed").length || 0
+  const inProgressCourses = userProgress?.filter((p: any) => p.status === "in_progress").length || 0
+  const totalTimeSpent = userProgress?.reduce((total: number, p: any) => total + (p.time_spent || 0), 0) || 0
   const averageProgress =
     userProgress?.length > 0
-      ? Math.round(userProgress.reduce((sum, p) => sum + p.progress_percentage, 0) / userProgress.length)
+      ? Math.round(userProgress.reduce((sum: number, p: any) => sum + p.progress_percentage, 0) / userProgress.length)
       : 0
 
   return (
@@ -68,32 +66,13 @@ export default async function DashboardPage() {
               <h1 className="text-3xl font-bold text-gray-900">¡Hola, {profile?.full_name || user.email}!</h1>
               <p className="text-gray-600 mt-1">Continúa tu viaje de aprendizaje</p>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/learning-paths">
-                <Button variant="outline">
-                  <Target className="h-4 w-4 mr-2" />
-                  Mis Rutas
-                </Button>
-              </Link>
-              <Link href="/courses">
-                <Button className="bg-primary hover:bg-primary-hover text-white">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Explorar Cursos
-                </Button>
-              </Link>
-              <form action={signOut}>
-                <Button variant="outline" type="submit">
-                  Cerrar Sesión
-                </Button>
-              </form>
-            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Enhanced Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+  <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Cursos Completados</CardTitle>
@@ -131,12 +110,12 @@ export default async function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Racha de Estudio</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Promedio General</CardTitle>
+              <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">7 días</div>
-              <p className="text-xs text-muted-foreground">¡Récord personal!</p>
+              <div className="text-2xl font-bold">{averageProgress}%</div>
+              <p className="text-xs text-muted-foreground">Progreso promedio acumulado</p>
             </CardContent>
           </Card>
         </div>
@@ -149,7 +128,7 @@ export default async function DashboardPage() {
 
               {userProgress && userProgress.length > 0 ? (
                 <div className="space-y-4">
-                  {userProgress.slice(0, 3).map((progress) => (
+                  {userProgress.slice(0, 3).map((progress: any) => (
                     <Card key={progress.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
@@ -207,7 +186,7 @@ export default async function DashboardPage() {
               courses={recentCourses || []}
             />
 
-            {/* Learning Goals */}
+            {/* Learning Goals (real, simple metrics) */}
             <Card>
               <CardHeader>
                 <CardTitle>Objetivos de Aprendizaje</CardTitle>
@@ -216,17 +195,17 @@ export default async function DashboardPage() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span>Meta semanal</span>
-                      <span>5/7 días</span>
+                      <span>Cursos en progreso</span>
+                      <span>{inProgressCourses}</span>
                     </div>
-                    <Progress value={71} className="h-2" />
+                    <Progress value={Math.min(100, (inProgressCourses / Math.max(1, (inProgressCourses + completedCourses))) * 100)} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span>Horas este mes</span>
-                      <span>12/20 horas</span>
+                      <span>Progreso general</span>
+                      <span>{averageProgress}%</span>
                     </div>
-                    <Progress value={60} className="h-2" />
+                    <Progress value={averageProgress} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
