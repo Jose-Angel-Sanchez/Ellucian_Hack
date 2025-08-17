@@ -225,7 +225,9 @@ export function HomePageClient() {
               <Brain className="h-6 w-6" />
               <span className="text-xl font-bold">inspiraT</span>
             </div>
-            <p className="text-gray-400">© 2024 inspiraT. Transformando la educación con inteligencia artificial.</p>
+            <p className="text-gray-400">
+              © {new Date().getFullYear()} inspiraT. Transformando la educación con inteligencia artificial.
+            </p>
           </div>
         </footer>
       </div>
