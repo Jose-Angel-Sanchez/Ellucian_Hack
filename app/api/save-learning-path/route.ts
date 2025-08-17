@@ -3,44 +3,54 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   console.log("Received request to /api/save-learning-path")
-  let supabase: any
-
   try {
     // Parse request body
-    let body
-    try {
-      body = await request.json()
-    } catch (error) {
-      console.error("Error parsing request body:", error)
+    const body = await request.json().catch(() => {
       throw new Error("Invalid request body")
-    }
+    })
     console.log("Request body parsed successfully")
 
-    // Validate request body
-    if (!body.userId || !body.learningPath) {
-      console.error("Missing required fields in request")
-      throw new Error("Missing required fields")
+    const { userId, learningPath } = body || {}
+
+    if (!userId || !learningPath) {
+      return NextResponse.json(
+        { success: false, error: "Missing required fields: userId and learningPath" },
+        { status: 400 },
+      )
     }
 
-    if (!body.learningPath.title || !body.learningPath.description || !Array.isArray(body.learningPath.courses)) {
-      console.error("Invalid learning path data")
-      throw new Error("Invalid learning path data")
+    if (!learningPath.title || !Array.isArray(learningPath.courses)) {
+      return NextResponse.json(
+        { success: false, error: "Learning path must have title and courses" },
+        { status: 400 },
+      )
     }
 
-    // Initialize Supabase client
-    supabase = createClient() as any
+    const supabase = createClient() as any
 
-    console.log("Saving learning path to database...")
-    // Save the learning path
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 })
+    }
+
+    if (user.id !== userId) {
+      return NextResponse.json({ success: false, error: "Unauthorized access" }, { status: 403 })
+    }
+
+    // Save the learning path to the database
     const { data, error } = await supabase
       .from("learning_paths")
       .insert({
-        user_id: body.userId,
-        title: body.learningPath.title,
-        description: body.learningPath.description,
-        target_skills: body.learningPath.targetSkills,
+        user_id: userId,
+        title: learningPath.title,
+        description: learningPath.description || "",
+        target_skills: learningPath.targetSkills || [],
         generated_by_ai: true,
-        path_data: body.learningPath,
+        path_data: learningPath,
         status: "active",
       })
       .select()
@@ -48,51 +58,41 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Error saving learning path:", error)
-      throw new Error("Failed to save learning path")
+      return NextResponse.json({ success: false, error: `Database error: ${error.message}` }, { status: 500 })
     }
     console.log("Learning path saved successfully")
 
-    // Create progress entries
-    console.log("Creating progress entries...")
-    const progressEntries = body.learningPath.courses.map((courseInfo: any) => ({
-      user_id: body.userId,
-      course_id: courseInfo.course.id,
-      learning_path_id: data.id,
-      progress_percentage: 0,
-      status: "not_started",
-    }))
+    // Create progress entries if courses provided
+    if (Array.isArray(learningPath.courses) && learningPath.courses.length > 0) {
+      const progressEntries = learningPath.courses
+        .filter((courseInfo: any) => courseInfo?.course?.id)
+        .map((courseInfo: any) => ({
+          user_id: userId,
+          course_id: courseInfo.course.id,
+          learning_path_id: data.id,
+          progress_percentage: 0,
+          status: "not_started",
+        }))
 
-    const { error: progressError } = await supabase
-      .from("user_progress")
-      .insert(progressEntries)
-
-    if (progressError) {
-      console.error("Error creating progress entries:", progressError)
-      // Don't fail the request, just log the error
-    } else {
-      console.log("Progress entries created successfully")
+      if (progressEntries.length > 0) {
+        const { error: progressError } = await supabase.from("user_progress").insert(progressEntries)
+        if (progressError) {
+          console.error("Error creating progress entries:", progressError)
+          // Non-fatal
+        }
+      }
     }
 
     console.log("Operation completed successfully")
     return NextResponse.json({
       success: true,
       pathId: data.id,
+      message: "Learning path saved successfully",
     })
 
   } catch (error) {
     console.error("Error in /api/save-learning-path:", error)
-    
-    // Determine appropriate error message and status
-    let errorMessage = "An unexpected error occurred"
-    let statusCode = 500
-
-    if (error instanceof Error) {
-      errorMessage = error.message
-    }
-    
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: statusCode }
-    )
+    const message = error instanceof Error ? error.message : "Internal server error"
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

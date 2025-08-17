@@ -1,8 +1,14 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Poppins } from "next/font/google"
+import { Inter } from "next/font/google"
 import "./globals.css"
 import AccessibilityToolbar from "@/components/accessibility/accessibility-toolbar"
+
+const googleSansCode = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-google-sans-code",
+})
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,19 +16,17 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  variable: "--font-poppins",
-})
-
 export const metadata: Metadata = {
   title: "EduPath AI - Personalized Learning Platform",
   description:
     "AI-powered learning platform that creates personalized study paths based on your level and goals. Learn efficiently with adaptive content and accessibility features.",
   keywords: ["learning", "education", "AI", "personalized", "courses", "accessibility"],
-    generator: 'v0.app'
+  generator: "v0.app",
+  icons: {
+    icon: [{ url: "/favicon.ico" }, { url: "/icon.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  manifest: "/manifest.json",
 }
 
 export default function RootLayout({
@@ -31,10 +35,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${poppins.variable} antialiased`}>
+    <html lang="es" className={`${googleSansCode.variable} ${inter.variable} antialiased`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#090225" />
         <meta name="color-scheme" content="light dark" />
         <meta name="supported-color-schemes" content="light dark" />
       </head>
