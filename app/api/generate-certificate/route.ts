@@ -1,11 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/lib/supabase/server"
+
+export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isSupabaseConfigured) {
+      return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 })
+    }
     const { certificateId } = await request.json()
 
-    const supabase = createServerClient()
+  const supabase = createClient() as SupabaseClient<Database>
 
     // Get certificate data
     const { data: certificate, error } = await supabase
@@ -32,7 +39,7 @@ export async function POST(request: NextRequest) {
       skills_learned: certificate.courses.skills || [],
     })
 
-    return new NextResponse(pdfBuffer, {
+  return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="certificate-${certificate.courses.title.replace(/\s+/g, "-").toLowerCase()}.pdf"`,
@@ -291,5 +298,6 @@ async function generateCertificatePDF(data: {
     %%EOF
   `)
 
-  return pdfContent
+  // NextResponse body prefers Uint8Array/ArrayBuffer/ReadableStream
+  return new Uint8Array(pdfContent)
 }

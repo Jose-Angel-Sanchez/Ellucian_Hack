@@ -1,3 +1,5 @@
+import { getCurrentUserAndProfile, getDisplayName } from "@/lib/supabase/auth"
+import { withAuthRetry } from "@/lib/supabase/auth"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,48 +15,64 @@ import LearningRecommendations from "@/components/dashboard/learning-recommendat
 export default async function DashboardPage() {
   const supabase = createClient()
 
-  // Check authentication
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let state = {
+    userProgress: [] as any[],
+    recentCourses: [] as any[],
+    profile: null as any,
+    user: null as any,
+    displayName: "Usuario",
+    completedCourses: 0,
+    inProgressCourses: 0,
+    totalTimeSpent: 0,
+    averageProgress: 0,
+  }
+  
+  try {
+    const userAndProfile = await getCurrentUserAndProfile(supabase as any)
+    state.user = userAndProfile.user
+    state.profile = userAndProfile.profile
 
-  if (!user) {
+    // Get user's enrolled courses with progress with retry
+    const progressResult = await withAuthRetry(() =>
+      ((supabase.from("user_progress") as any).select(`
+        *,
+        courses (
+          id,
+          title,
+          description,
+          category,
+          difficulty_level,
+          estimated_duration
+        )
+      `) as any)
+        .eq("user_id", state.user.id)
+        .order("last_accessed", { ascending: false })
+    )
+    state.userProgress = progressResult.data || []
+
+    // Get recent courses for recommendations with retry
+    const coursesResult = await withAuthRetry(() =>
+      ((supabase.from("courses") as any).select("*") as any)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(6)
+    )
+    state.recentCourses = coursesResult.data || []
+
+    // Calculate metrics
+    state.completedCourses = state.userProgress?.filter((p: any) => p.status === "completed").length || 0
+    state.inProgressCourses = state.userProgress?.filter((p: any) => p.status === "in_progress").length || 0
+    state.totalTimeSpent = state.userProgress?.reduce((total: number, p: any) => total + (p.time_spent || 0), 0) || 0
+    state.averageProgress = state.userProgress?.length > 0
+      ? Math.round(state.userProgress.reduce((sum: number, p: any) => sum + p.progress_percentage, 0) / state.userProgress.length)
+      : 0
+
+    state.displayName = getDisplayName(state.user, state.profile)
+
+  } catch (error) {
+    console.error("Authentication error:", error)
     redirect("/auth/login")
   }
-
-  // Get user profile
-  const { data: profile } = (await (supabase.from("profiles") as any).select("*").eq("id", user.id).single()) as any
-
-  // Get user's enrolled courses with progress
-  const userProgressQ = ((supabase.from("user_progress") as any).select(`
-      *,
-      courses (
-        id,
-        title,
-        description,
-        category,
-        difficulty_level,
-        estimated_duration
-      )
-    `) as any)
-  const { data: userProgress } = (await userProgressQ
-    .eq("user_id", user.id)
-    .order("last_accessed", { ascending: false })) as any
-
-  // Get recent courses for recommendations
-  const recentCoursesQ = ((supabase.from("courses") as any).select("*") as any)
-  const { data: recentCourses } = (await recentCoursesQ
-    .eq("is_active", true)
-    .order("created_at", { ascending: false })
-    .limit(6)) as any
-
-  const completedCourses = userProgress?.filter((p: any) => p.status === "completed").length || 0
-  const inProgressCourses = userProgress?.filter((p: any) => p.status === "in_progress").length || 0
-  const totalTimeSpent = userProgress?.reduce((total: number, p: any) => total + (p.time_spent || 0), 0) || 0
-  const averageProgress =
-    userProgress?.length > 0
-      ? Math.round(userProgress.reduce((sum: number, p: any) => sum + p.progress_percentage, 0) / userProgress.length)
-      : 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,7 +81,7 @@ export default async function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">¡Hola, {profile?.full_name || user.email}!</h1>
+              <h1 className="text-3xl font-bold text-gray-900">¡Hola, {state.displayName}!</h1>
               <p className="text-gray-600 mt-1">Continúa tu viaje de aprendizaje</p>
             </div>
           </div>
@@ -79,9 +97,9 @@ export default async function DashboardPage() {
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{completedCourses}</div>
+              <div className="text-2xl font-bold">{state.completedCourses}</div>
               <p className="text-xs text-muted-foreground">
-                {completedCourses > 0 ? `+${Math.round(completedCourses * 0.2)} este mes` : "Completa tu primero"}
+                {state.completedCourses > 0 ? `+${Math.round(state.completedCourses * 0.2)} este mes` : "Completa tu primero"}
               </p>
             </CardContent>
           </Card>
@@ -92,8 +110,8 @@ export default async function DashboardPage() {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inProgressCourses}</div>
-              <p className="text-xs text-muted-foreground">Progreso promedio: {averageProgress}%</p>
+              <div className="text-2xl font-bold">{state.inProgressCourses}</div>
+              <p className="text-xs text-muted-foreground">Progreso promedio: {state.averageProgress}%</p>
             </CardContent>
           </Card>
 
@@ -103,8 +121,8 @@ export default async function DashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{Math.floor(totalTimeSpent / 60)}h</div>
-              <p className="text-xs text-muted-foreground">{Math.round(totalTimeSpent % 60)}min adicionales</p>
+              <div className="text-2xl font-bold">{Math.floor(state.totalTimeSpent / 60)}h</div>
+              <p className="text-xs text-muted-foreground">{Math.round(state.totalTimeSpent % 60)}min adicionales</p>
             </CardContent>
           </Card>
 
@@ -114,7 +132,7 @@ export default async function DashboardPage() {
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{averageProgress}%</div>
+              <div className="text-2xl font-bold">{state.averageProgress}%</div>
               <p className="text-xs text-muted-foreground">Progreso promedio acumulado</p>
             </CardContent>
           </Card>
@@ -126,9 +144,9 @@ export default async function DashboardPage() {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Continúa Aprendiendo</h2>
 
-              {userProgress && userProgress.length > 0 ? (
+              {state.userProgress && state.userProgress.length > 0 ? (
                 <div className="space-y-4">
-                  {userProgress.slice(0, 3).map((progress: any) => (
+                  {state.userProgress.slice(0, 3).map((progress: any) => (
                     <Card key={progress.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
@@ -175,15 +193,15 @@ export default async function DashboardPage() {
               )}
             </div>
 
-            <ProgressAnalytics userProgress={userProgress || []} profile={profile} />
+            <ProgressAnalytics userProgress={state.userProgress || []} profile={state.profile} />
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             <LearningRecommendations
-              userProgress={userProgress || []}
-              profile={profile}
-              courses={recentCourses || []}
+              userProgress={state.userProgress || []}
+              profile={state.profile}
+              courses={state.recentCourses || []}
             />
 
             {/* Learning Goals (real, simple metrics) */}
@@ -196,23 +214,23 @@ export default async function DashboardPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Cursos en progreso</span>
-                      <span>{inProgressCourses}</span>
+                      <span>{state.inProgressCourses}</span>
                     </div>
-                    <Progress value={Math.min(100, (inProgressCourses / Math.max(1, (inProgressCourses + completedCourses))) * 100)} className="h-2" />
+                    <Progress value={Math.min(100, (state.inProgressCourses / Math.max(1, (state.inProgressCourses + state.completedCourses))) * 100)} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Progreso general</span>
-                      <span>{averageProgress}%</span>
+                      <span>{state.averageProgress}%</span>
                     </div>
-                    <Progress value={averageProgress} className="h-2" />
+                    <Progress value={state.averageProgress} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Cursos este año</span>
-                      <span>{completedCourses}/5 cursos</span>
+                      <span>{state.completedCourses}/5 cursos</span>
                     </div>
-                    <Progress value={(completedCourses / 5) * 100} className="h-2" />
+                    <Progress value={(state.completedCourses / 5) * 100} className="h-2" />
                   </div>
                 </div>
               </CardContent>

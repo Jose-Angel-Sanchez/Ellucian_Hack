@@ -1,11 +1,11 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { CertificateGenerator } from "@/components/certificates/certificate-generator"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Award } from "lucide-react"
 
 export default async function CertificatesPage() {
-  const supabase = createServerClient()
+  const supabase = createClient() as any
 
   const {
     data: { user },
@@ -34,7 +34,7 @@ export default async function CertificatesPage() {
 
       {certificates && certificates.length > 0 ? (
         <div className="space-y-6">
-          {certificates.map((certificate) => (
+          {certificates.map((certificate: any) => (
             <CertificateGenerator
               key={certificate.id}
               certificate={{

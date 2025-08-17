@@ -1,9 +1,5 @@
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-if (!process.env.GOOGLE_GEMINI_API_KEY) {
-  throw new Error("Missing GOOGLE_GEMINI_API_KEY environment variable")
-}
-
 export async function generateContent(prompt: string) {
   if (!process.env.GOOGLE_GEMINI_API_KEY) {
     console.error("Missing GOOGLE_GEMINI_API_KEY environment variable")

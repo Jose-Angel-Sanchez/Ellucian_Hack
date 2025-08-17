@@ -5,6 +5,9 @@ import { generateContent } from "@/lib/gemini/config"
 import { revalidatePath } from "next/cache"
 import { enrichRoadmap, type Roadmap } from "@/lib/roadmap/enrich"
 
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient() as SupabaseClient<Database>
 
