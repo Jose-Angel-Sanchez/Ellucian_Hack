@@ -80,10 +80,25 @@ export default async function DashboardPage() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">¡Hola, {state.displayName}!</h1>
-              <p className="text-gray-600 mt-1">Continúa tu viaje de aprendizaje</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">¡Hola, {state.displayName}!</h1>
+                <p className="text-gray-600 mt-1">Continúa tu viaje de aprendizaje</p>
+              </div>
             </div>
+            {/* Admin quick actions */}
+            {state.user?.email?.endsWith("@alumno.buap.mx") && (
+              <div className="flex gap-2">
+                <Link href="/admin/courses?tab=create">
+                  <Button className="bg-primary text-white">
+                    <Plus className="h-4 w-4 mr-2" /> Crear curso
+                  </Button>
+                </Link>
+                <Link href="/admin/courses">
+                  <Button variant="outline">Administrar cursos</Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

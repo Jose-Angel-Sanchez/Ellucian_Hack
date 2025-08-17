@@ -1,0 +1,315 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createClient } from "@/lib/supabase/client"
+import { useToast } from "../ui/use-toast"
+import { Loader2, Upload } from "lucide-react"
+
+type ContentType = "video" | "audio" | "image" | "blog"
+
+export default function ContentUploader({ userId }: { userId: string }) {
+  const [isUploading, setIsUploading] = useState(false)
+  const [contentType, setContentType] = useState<ContentType>("blog")
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [file, setFile] = useState<File | null>(null)
+  const [transcription, setTranscription] = useState("")
+  const [duration, setDuration] = useState<string>("")
+  const [courses, setCourses] = useState<{ id: string; title: string }[]>([])
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
+  const { toast } = useToast()
+  const supabase = createClient()
+
+  // Extrae un mensaje útil desde diferentes formas de error
+  const getErrorMessage = (err: unknown): string => {
+    if (!err) return "Error desconocido"
+    if (typeof err === "string") return err
+    if (err instanceof Error) return err.message
+    try {
+      const anyErr = err as any
+      if (anyErr?.message) return String(anyErr.message)
+      if (anyErr?.error_description) return String(anyErr.error_description)
+      if (anyErr?.statusText) return String(anyErr.statusText)
+      if (anyErr?.error) return String(anyErr.error)
+      return JSON.stringify(anyErr)
+    } catch {
+      return String(err)
+    }
+  }
+
+  // Load courses created by this user to allow linking
+  useEffect(() => {
+    const loadCourses = async () => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, title")
+        .eq("created_by", userId)
+        .order("created_at", { ascending: false })
+      if (!error && data) setCourses(data as any)
+    }
+    loadCourses()
+  }, [supabase, userId])
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setFile(file)
+    
+    // Si es audio o video, iniciar transcripción automática
+    if ((contentType === "audio" || contentType === "video") && file) {
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+        
+        const response = await fetch("/api/transcribe", {
+          method: "POST",
+          body: formData,
+        })
+        if (!response.ok) {
+          const text = await response.text().catch(() => "")
+          throw new Error(text || `Transcripción no disponible (HTTP ${response.status})`)
+        }
+        const data = await response.json().catch(() => ({} as any))
+        if (data?.transcription) {
+          setTranscription(data.transcription)
+        }
+      } catch (error) {
+        console.error("Error en la transcripción:", error)
+        toast({
+          title: "Error en la transcripción",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title || !description || (!file && contentType !== "blog")) {
+      toast({
+        title: "Campos requeridos",
+        description: "Por favor completa todos los campos necesarios.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate duration (optional) and course selection (required)
+    const minutes = duration.trim() ? parseInt(duration.trim(), 10) : null
+    if (duration.trim() && (Number.isNaN(minutes as number) || (minutes as number) < 0)) {
+      toast({ title: "Duración inválida", description: "Ingresa minutos válidos.", variant: "destructive" })
+      return
+    }
+    if (contentType !== "blog" && selectedCourseIds.length === 0) {
+      toast({ title: "Selecciona curso(s)", description: "Elige al menos un curso para asociar el contenido.", variant: "destructive" })
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      let phase: "upload" | "insert" | "none" = "none"
+      let fileUrl = ""
+      let filePathSaved = ""
+
+      if (file) {
+        phase = "upload"
+        const fileExt = file.name.split(".").pop()
+        const filePath = `${contentType}/${userId}/${Date.now()}.${fileExt}`
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("content")
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type || undefined,
+          })
+
+        if (uploadError) {
+          const msg = getErrorMessage(uploadError)
+          throw new Error(`Error al subir al Storage: ${msg}`)
+        }
+
+        const { data: publicData } = supabase.storage
+          .from("content")
+          .getPublicUrl(filePath)
+
+        fileUrl = publicData?.publicUrl || ""
+        filePathSaved = filePath
+      }
+
+      phase = "insert"
+      const { data: inserted, error: insertError } = await supabase
+        .from("content")
+        .insert({
+          title,
+          description,
+          type: contentType,
+          file_url: fileUrl || null,
+          file_path: filePathSaved || null,
+          transcription: transcription || null,
+          duration: minutes,
+          created_by: userId,
+        })
+        .select("id")
+        .single()
+
+      if (insertError) {
+        const msg = getErrorMessage(insertError)
+        throw new Error(`Error al registrar en la BD: ${msg}`)
+      }
+
+      // Associate with selected courses
+      const contentId = (inserted as any)?.id
+  if (contentId && contentType !== "blog" && selectedCourseIds.length > 0) {
+        const { error: linkError } = await supabase
+          .from("course_content")
+          .insert(selectedCourseIds.map((cid) => ({ course_id: cid, content_id: contentId })))
+        if (linkError) {
+          throw new Error(`Error al asociar con curso(s): ${getErrorMessage(linkError)}`)
+        }
+      }
+
+      toast({
+        title: "Contenido subido",
+        description: "El contenido se ha subido correctamente.",
+      })
+
+      // Limpiar formulario
+      setTitle("")
+      setDescription("")
+      setFile(null)
+      setTranscription("")
+  setDuration("")
+  setSelectedCourseIds([])
+      
+    } catch (error) {
+      const message = getErrorMessage(error)
+      console.error("Error al subir contenido:", error)
+      toast({
+        title: "Error al subir contenido",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <Select
+          value={contentType}
+          onValueChange={(value: ContentType) => setContentType(value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Tipo de contenido" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="blog">Blog</SelectItem>
+            <SelectItem value="video">Video</SelectItem>
+            <SelectItem value="audio">Audio</SelectItem>
+            <SelectItem value="image">Imagen</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Input
+          placeholder="Título"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+
+        <Textarea
+          placeholder="Descripción"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+        />
+
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          step={1}
+          placeholder="Duración (minutos) — opcional"
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+        />
+
+        {contentType !== "blog" && (
+          <Input
+            type="file"
+            onChange={handleFileChange}
+            accept={
+              contentType === "video"
+                ? "video/*"
+                : contentType === "audio"
+                ? "audio/*"
+                : "image/*"
+            }
+            required
+          />
+        )}
+
+        {(contentType === "video" || contentType === "audio") && transcription && (
+          <Textarea
+            placeholder="Transcripción"
+            value={transcription}
+            onChange={(e) => setTranscription(e.target.value)}
+            className="h-32"
+          />
+        )}
+
+        {/* Course multi-select via checkboxes (not needed for blogs) */}
+        {contentType !== "blog" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Agregar a curso(s)</label>
+            <div className="grid gap-2 max-h-48 overflow-auto p-2 border rounded">
+              {courses.map((c) => {
+                const checked = selectedCourseIds.includes(c.id)
+                return (
+                  <label key={c.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setSelectedCourseIds((prev) =>
+                          e.target.checked ? [...prev, c.id] : prev.filter((id) => id !== c.id)
+                        )
+                      }}
+                    />
+                    <span>{c.title}</span>
+                  </label>
+                )
+              })}
+              {courses.length === 0 && (
+                <div className="text-xs text-gray-500">No tienes cursos creados todavía.</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Button disabled={isUploading} type="submit" className="w-full">
+        {isUploading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Subiendo...
+          </>
+        ) : (
+          <>
+            <Upload className="mr-2 h-4 w-4" />
+            Subir Contenido
+          </>
+        )}
+      </Button>
+    </form>
+  )
+}

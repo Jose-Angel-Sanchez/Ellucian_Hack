@@ -1,0 +1,195 @@
+"use client"
+
+import { useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/components/providers/auth-provider-enhanced"
+
+const CATEGORIES = [
+  "Programación",
+  "Diseño", 
+  "Marketing",
+  "Negocios",
+  "Idiomas",
+  "Ciencias",
+  "Matemáticas",
+  "Otros",
+]
+
+const DIFFICULTY_LEVELS = [
+  { value: "beginner", label: "Principiante" },
+  { value: "intermediate", label: "Intermedio" },
+  { value: "advanced", label: "Avanzado" },
+]
+
+export default function CourseFormMinimal({ 
+  userId = "user-123",
+  onCourseCreated 
+}: { 
+  userId?: string
+  onCourseCreated?: () => void 
+}) {
+  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(false)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [category, setCategory] = useState("")
+  const [difficultyLevel, setDifficultyLevel] = useState("")
+  const [estimatedDuration, setEstimatedDuration] = useState("")
+  const [message, setMessage] = useState("")
+  
+  const supabase = createClient()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!title || !description || !category || !difficultyLevel || !estimatedDuration) {
+      setMessage("Por favor completa todos los campos requeridos.")
+      return
+    }
+
+    setIsLoading(true)
+    setMessage("")
+    
+    try {
+      // Verificar que el usuario esté autenticado
+      if (!user) {
+        throw new Error("Usuario no autenticado")
+      }
+
+      // Create course
+      const { data: inserted, error: courseError } = await supabase
+        .from("courses")
+        .insert({
+          title,
+          description,
+          category,
+          difficulty_level: difficultyLevel,
+          estimated_duration: parseInt(estimatedDuration),
+          created_by: user.id, // Usar el ID del usuario del contexto
+        })
+        .select("id")
+
+      if (courseError) {
+        throw new Error(`Error al insertar curso: ${courseError.message || "desconocido"}`)
+      }
+
+      setMessage("✅ Curso creado correctamente!")
+      
+      // Llamar al callback si existe
+      if (onCourseCreated) {
+        onCourseCreated()
+      }
+      
+      // Clear form
+      setTitle("")
+      setDescription("")
+      setCategory("")
+      setDifficultyLevel("")
+      setEstimatedDuration("")
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setMessage("")
+      }, 3000)
+      
+    } catch (error: any) {
+      const msg = error?.message || (typeof error === "string" ? error : JSON.stringify(error))
+      console.error("Error al crear curso:", error)
+      setMessage(`❌ Error: ${msg}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Información Básica del Curso</h2>
+        
+        {message && (
+          <div className={`p-3 rounded mb-4 ${
+            message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {message}
+          </div>
+        )}
+        
+        <div className="space-y-4">
+          <input
+            placeholder="Título del curso"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+
+          <textarea
+            placeholder="Descripción del curso"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+            rows={4}
+            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)} 
+              required
+              className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Selecciona una categoría</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+
+            <select 
+              value={difficultyLevel} 
+              onChange={(e) => setDifficultyLevel(e.target.value)} 
+              required
+              className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Nivel de dificultad</option>
+              {DIFFICULTY_LEVELS.map((level) => (
+                <option key={level.value} value={level.value}>
+                  {level.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Duración estimada (minutos)
+            </label>
+            <input
+              type="number"
+              placeholder="120"
+              value={estimatedDuration}
+              onChange={(e) => setEstimatedDuration(e.target.value)}
+              required
+              min="1"
+              className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <button 
+        type="submit" 
+        disabled={isLoading}
+        className={`w-full p-3 rounded-md text-white font-medium ${
+          isLoading 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : 'bg-blue-500 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500'
+        } transition-colors`}
+      >
+        {isLoading ? 'Creando curso...' : 'Crear curso'}
+      </button>
+    </form>
+  )
+}

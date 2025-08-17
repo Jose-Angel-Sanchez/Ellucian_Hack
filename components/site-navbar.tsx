@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import SuperUserBadge from "@/components/ui/super-user-badge"
 import { signOut } from "@/lib/actions"
 import { Brain, Menu } from "lucide-react"
 
@@ -29,6 +30,7 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
               <Brain className="h-7 w-7 text-primary" />
               <span className="text-xl font-semibold text-gray-900">inspiraT</span>
             </Link>
+            {user && <SuperUserBadge user={user} />}
           </div>
 
           {/* Desktop nav */}
@@ -44,6 +46,21 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
                 <Link href="/dashboard">
                   <Button variant="ghost">Dashboard</Button>
                 </Link>
+                {user.email?.includes("@alumno.buap.mx") && (
+                  <>
+                    <Link href="/test-courses">
+                      <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
+                        🚀 Gestión de Cursos
+                      </Button>
+                    </Link>
+                    <Link href="/admin/courses">
+                      <Button variant="ghost">Administrar</Button>
+                    </Link>
+                    <Link href="/admin/content">
+                      <Button variant="ghost">Contenido</Button>
+                    </Link>
+                  </>
+                )}
                 <form action={signOut}>
                   <Button variant="outline" type="submit">Cerrar Sesión</Button>
                 </form>
@@ -101,6 +118,21 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
                   <Link href="/dashboard" className="w-full">
                     <Button onClick={() => setOpen(false)} variant="ghost" className="w-full justify-start">Dashboard</Button>
                   </Link>
+                  {user.email?.includes("@alumno.buap.mx") && (
+                    <>
+                      <Link href="/test-courses" className="w-full">
+                        <Button onClick={() => setOpen(false)} variant="default" className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white">
+                          🚀 Gestión de Cursos
+                        </Button>
+                      </Link>
+                      <Link href="/admin/courses" className="w-full">
+                        <Button onClick={() => setOpen(false)} variant="ghost" className="w-full justify-start">Administrar</Button>
+                      </Link>
+                      <Link href="/admin/content" className="w-full">
+                        <Button onClick={() => setOpen(false)} variant="ghost" className="w-full justify-start">Contenido</Button>
+                      </Link>
+                    </>
+                  )}
                   <form action={signOut} className="w-full">
                     <Button onClick={() => setOpen(false)} variant="outline" type="submit" className="w-full justify-start">Cerrar Sesión</Button>
                   </form>
