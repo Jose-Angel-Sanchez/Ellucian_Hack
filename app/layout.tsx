@@ -19,9 +19,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "EduPath AI - Personalized Learning Platform",
+  title: "inspiraT - Plataforma de Aprendizaje Personalizado",
   description:
-    "AI-powered learning platform that creates personalized study paths based on your level and goals. Learn efficiently with adaptive content and accessibility features.",
+    "Plataforma de aprendizaje impulsada por IA que crea rutas de estudio personalizadas basadas en tu nivel y objetivos. Aprende eficientemente con contenido adaptativo y características de accesibilidad.",
   keywords: ["learning", "education", "AI", "personalized", "courses", "accessibility"],
   generator: "v0.app",
   icons: {

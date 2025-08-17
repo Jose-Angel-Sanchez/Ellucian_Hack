@@ -1,6 +1,6 @@
 {
-  "name": "EduPath - Plataforma de Aprendizaje",
-  "short_name": "EduPath",
+  "name": "inspiraT - Plataforma de Aprendizaje",
+  "short_name": "inspiraT",
   "description": "Plataforma de aprendizaje personalizado con IA",
   "start_url": "/",
   "display": "standalone",

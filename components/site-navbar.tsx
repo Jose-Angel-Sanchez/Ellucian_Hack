@@ -27,7 +27,7 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
           <div className="flex items-center space-x-2">
             <Link href="/" className="flex items-center space-x-2">
               <Brain className="h-7 w-7 text-primary" />
-              <span className="text-xl font-semibold text-gray-900">EduPath AI</span>
+              <span className="text-xl font-semibold text-gray-900">inspiraT</span>
             </Link>
           </div>
 

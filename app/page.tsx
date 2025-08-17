@@ -56,7 +56,7 @@ export default async function HomePage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">¿Por qué elegir EduPath AI?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">¿Por qué elegir inspiraT?</h2>
             <p className="text-xl text-gray-600">Tecnología avanzada al servicio de tu educación</p>
           </div>
 
@@ -111,9 +111,9 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <Brain className="h-6 w-6" />
-            <span className="text-xl font-bold">EduPath AI</span>
+            <span className="text-xl font-bold">inspiraT</span>
           </div>
-          <p className="text-gray-400">© 2024 EduPath AI. Transformando la educación con inteligencia artificial.</p>
+          <p className="text-gray-400">© 2024 inspiraT. Transformando la educación con inteligencia artificial.</p>
         </div>
       </footer>
     </div>
