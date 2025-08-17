@@ -91,11 +91,42 @@ export default function CourseSectionsManager({ courseId }: { courseId: string }
         title: "Sección creada",
         description: "La sección se ha agregado correctamente al curso.",
       })
-    } catch (error) {
-      console.error("Error creating section:", error)
+    } catch (error: any) {
+      // Log completo del error para debugging
+      console.error("Error creating section - Full error object:", {
+        error: error,
+        message: error?.message,
+        details: error?.details,
+        code: error?.code,
+        hint: error?.hint,
+        statusCode: error?.statusCode,
+        status: error?.status,
+        statusText: error?.statusText,
+        errorDescription: error?.error_description,
+        stack: error?.stack
+      })
+      
+      // Serializar el error completo como string si es un objeto
+      console.error("Error creating section - Stringified:", JSON.stringify(error, null, 2))
+      
+      // Mejor manejo del error
+      let errorMessage = "No se pudo crear la sección."
+      if (error?.message) {
+        errorMessage += ` Detalle: ${error.message}`
+      }
+      if (error?.details) {
+        errorMessage += ` (${error.details})`
+      }
+      if (error?.code) {
+        errorMessage += ` [Código: ${error.code}]`
+      }
+      if (error?.hint) {
+        errorMessage += ` Sugerencia: ${error.hint}`
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudo crear la sección.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

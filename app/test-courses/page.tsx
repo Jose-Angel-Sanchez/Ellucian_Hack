@@ -3,6 +3,7 @@ import CoursesManagement from "@/components/courses/courses-management"
 import AuthDebug from "@/components/debug/auth-debug"
 import SessionDebug from "@/components/debug/session-debug"
 import SessionSync from "@/components/debug/session-sync"
+import DatabaseFixer from "@/components/debug/database-fixer"
 import ClientWrapper from "@/components/wrappers/client-wrapper"
 import { redirect } from "next/navigation"
 
@@ -30,6 +31,7 @@ export default async function TestCoursesPage() {
           </div>
           
           <div className="space-y-4 mb-6">
+            <DatabaseFixer />
             <SessionSync />
             <AuthDebug />
             <SessionDebug />

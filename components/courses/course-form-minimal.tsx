@@ -28,7 +28,7 @@ export default function CourseFormMinimal({
   userId?: string
   onCourseCreated?: () => void 
 }) {
-  const { user } = useAuth()
+  const { user, loading, refreshSession } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -51,26 +51,35 @@ export default function CourseFormMinimal({
     setMessage("")
     
     try {
-      // Verificar que el usuario esté autenticado
-      if (!user) {
-        throw new Error("Usuario no autenticado")
+      // Evitar enviar mientras la sesión se está cargando
+      if (loading) {
+        setMessage("⏳ Verificando sesión, intenta de nuevo en un momento...")
+        await refreshSession().catch(() => {})
+        return
       }
 
-      // Create course
-      const { data: inserted, error: courseError } = await supabase
-        .from("courses")
-        .insert({
+      // Verificar que el usuario esté autenticado
+      if (!user) {
+        setMessage("❌ Error: Debes iniciar sesión para crear un curso.")
+        return
+      }
+
+      // Create course via server API to leverage server-side session (RLS-friendly)
+      const resp = await fetch('/api/courses/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title,
           description,
           category,
           difficulty_level: difficultyLevel,
-          estimated_duration: parseInt(estimatedDuration),
-          created_by: user.id, // Usar el ID del usuario del contexto
+          estimated_duration: parseInt(estimatedDuration, 10)
         })
-        .select("id")
+      })
 
-      if (courseError) {
-        throw new Error(`Error al insertar curso: ${courseError.message || "desconocido"}`)
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        throw new Error(`Error al insertar curso: ${err?.error || resp.statusText}`)
       }
 
       setMessage("✅ Curso creado correctamente!")
@@ -106,6 +115,13 @@ export default function CourseFormMinimal({
       <div>
         <h2 className="text-xl font-semibold mb-4">Información Básica del Curso</h2>
         
+        {!user && !loading && (
+          <div className="p-3 rounded mb-4 bg-yellow-100 text-yellow-800">
+            Debes iniciar sesión para crear un curso. 
+            <a href="/auth/login" className="underline ml-1">Iniciar sesión</a>
+          </div>
+        )}
+
         {message && (
           <div className={`p-3 rounded mb-4 ${
             message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -181,14 +197,14 @@ export default function CourseFormMinimal({
 
       <button 
         type="submit" 
-        disabled={isLoading}
+        disabled={isLoading || loading}
         className={`w-full p-3 rounded-md text-white font-medium ${
-          isLoading 
+          isLoading || loading 
             ? 'bg-gray-400 cursor-not-allowed' 
             : 'bg-blue-500 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500'
         } transition-colors`}
       >
-        {isLoading ? 'Creando curso...' : 'Crear curso'}
+        {loading ? 'Verificando sesión...' : isLoading ? 'Creando curso...' : 'Crear curso'}
       </button>
     </form>
   )
