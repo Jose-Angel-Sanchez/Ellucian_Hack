@@ -1,48 +1,104 @@
-# No content
+# Ellucian Hack – Cursos y Contenido (Next.js + Supabase)
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+Gestión de cursos con autenticación Supabase, RLS y CRUD inline (crear, editar, eliminar) desde la misma vista. Incluye demo de video incrustado.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/joseangelsanchezs-projects/v0-no-content)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/Gz95kStQzKg)
+## Requisitos
+- Node.js 18+
+- Supabase Project (URL y anon key)
+- Opcional (reclamar cursos huérfanos): Service Role Key
 
-## Overview
+## Variables de entorno (.env.local)
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_public_anon_key
+# Necesario para /api/courses/orphans/claim
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+## Instalación y ejecución
+```
+npm i
+npm run dev
+# http://localhost:3000
+```
 
-## Deployment
+## Base de datos y RLS
+Ejecutar en Supabase SQL Editor:
+- scripts/07-complete-rls-fix.sql
 
-Your project is live at:
+Resumen de políticas:
+- courses:
+  - SELECT: autenticados
+  - INSERT: created_by = auth.uid()
+  - UPDATE/DELETE: solo dueño (created_by = auth.uid())
+- course_sections: CRUD permitido solo si el curso asociado es del usuario
 
-**[https://vercel.com/joseangelsanchezs-projects/v0-no-content](https://vercel.com/joseangelsanchezs-projects/v0-no-content)**
+Si tienes cursos antiguos sin owner:
+```
+UPDATE courses SET created_by = auth.uid() WHERE created_by IS NULL;
+```
 
-### Vercel frozen lockfile error
+## Rutas principales
+- / → Home. Botón “Ver Demo”
+  - Clic: abre YouTube en modal
+  - Mantener presionado: abre respaldo de Google Drive (sobre la misma página)
+- /test-courses → Gestión de cursos (requiere login)
+  - Crear curso (usa API de servidor)
+  - Listado con edición y eliminación inline
+  - Banner para “Reclamar” cursos huérfanos (si existen)
 
-If a build fails with:
+## CRUD de Cursos (UI)
+- Crear: formulario “Crear Nuevo Curso”
+- Editar inline: botón ✏️ → inputs → 💾 Guardar / ✖️ Cancelar
+- Eliminar inline: botón 🗑️ (con confirmación)
+- Reclamar huérfanos: aparece un banner si hay cursos con created_by NULL
 
-> ERR_PNPM_OUTDATED_LOCKFILE Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date
+## Endpoints (servidor)
+- POST /api/courses/create
+  - body: { title, category, level, duration }
+  - Inserta con created_by = auth.uid() (vía cookies de sesión)
+- PATCH /api/courses/[id]
+  - body: campos a actualizar
+  - Solo dueño
+- DELETE /api/courses/[id]
+  - Solo dueño
+- POST /api/courses/orphans/claim
+  - Requiere SUPABASE_SERVICE_ROLE_KEY
+  - Restringido a emails @alumno.buap.mx por defecto
+  - Asigna created_by = user.id a cursos con created_by NULL
 
-You have two options:
+Para cambiar la restricción de dominio, editar:
+- app/api/courses/orphans/claim/route.ts
 
-1) Update and commit the lockfile (preferred):
+## Demo de Video en Home
+- Modal responsivo incrustado
+- Reproducción:
+  - YouTube por defecto
+  - Mantener presionado el botón “Ver Demo” → Google Drive (respaldo)
 
-	pnpm install
-	git add pnpm-lock.yaml
-	git commit -m "chore: update lockfile"
+## Solución de problemas
+- “User not authenticated”
+  - Inicia sesión y recarga
+  - Verifica que la vista esté envuelta por el AuthProvider/ClientWrapper
+- “new row violates row-level security policy”
+  - Ejecuta scripts/07-complete-rls-fix.sql
+  - Asegura que `created_by` se envíe y coincida con `auth.uid()`
+- No puedes editar/eliminar
+  - No eres dueño del curso → usa el banner “Reclamar” o actualiza ownership vía SQL
+- Reclamar no funciona
+  - Falta SUPABASE_SERVICE_ROLE_KEY o tu email no es @alumno.buap.mx
 
-2) Allow installs without a frozen lockfile in CI (configured here via vercel.json):
+## Estructura relevante
+- components/courses/
+  - courses-management.tsx (contenedor)
+  - courses-list-minimal.tsx (lista con edición/eliminación inline)
+  - course-form-minimal.tsx (formulario crear)
+- app/api/courses/
+  - create/route.ts (POST crear)
+  - [id]/route.ts (PATCH/DELETE)
+  - orphans/claim/route.ts (POST reclamar huérfanos)
+- scripts/
+  - 07-complete-rls-fix.sql (RLS completo cursos/secciones)
 
-	installCommand: pnpm install --no-frozen-lockfile
-
-## Build your app
-
-Continue building your app on:
-
-**[https://v0.app/chat/projects/Gz95kStQzKg](https://v0.app/chat/projects/Gz95kStQzKg)**
-
-## How It Works
-
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## Licencia
+Uso interno sólo para demostración: Hack Puebla
