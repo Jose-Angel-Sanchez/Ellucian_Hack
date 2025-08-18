@@ -4,7 +4,7 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Función para intentar una operación con reintentos
 export async function retryOperation<T>(
   operation: () => Promise<T>,
-  maxRetries: number = 10,
+  maxRetries: number = 3,
   initialDelay: number = 1000
 ): Promise<T> {
   let lastError;
