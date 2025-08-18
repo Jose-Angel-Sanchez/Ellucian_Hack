@@ -37,9 +37,6 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
           <nav className="hidden md:flex items-center gap-3">
             {user ? (
               <>
-                <Link href="/dashboard">
-                  <Button variant="ghost">Dashboard</Button>
-                </Link>
                 <Link href="/courses">
                   <Button variant="ghost">Cursos</Button>
                 </Link>
@@ -115,9 +112,6 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
               </Link>
               {user ? (
                 <>
-                  <Link href="/dashboard" className="w-full">
-                    <Button onClick={() => setOpen(false)} variant="ghost" className="w-full justify-start">Dashboard</Button>
-                  </Link>
                   {user.email?.includes("@alumno.buap.mx") && (
                     <>
                       <Link href="/test-courses" className="w-full">
