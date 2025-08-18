@@ -35,16 +35,16 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-3">
-            <Link href="/courses">
-              <Button variant="ghost">Cursos</Button>
-            </Link>
-            <Link href="/learning-paths">
-              <Button variant="ghost">Rutas</Button>
-            </Link>
             {user ? (
               <>
                 <Link href="/dashboard">
                   <Button variant="ghost">Dashboard</Button>
+                </Link>
+                <Link href="/courses">
+                  <Button variant="ghost">Cursos</Button>
+                </Link>
+                <Link href="/learning-paths">
+                  <Button variant="ghost">Rutas</Button>
                 </Link>
                 {user.email?.includes("@alumno.buap.mx") && (
                   <>
