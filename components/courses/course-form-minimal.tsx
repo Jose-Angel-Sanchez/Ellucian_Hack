@@ -12,6 +12,17 @@ const CATEGORIES = [
   "Idiomas",
   "Ciencias",
   "Matemáticas",
+  "Arte",
+  "Música",
+  "Fotografía",
+  "Salud",
+  "Desarrollo personal",
+  "Educación",
+  "Historia",
+  "Tecnología",
+  "Finanzas",
+  "Cocina",
+  "Deportes",
   "Otros",
 ]
 
