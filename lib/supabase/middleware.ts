@@ -60,7 +60,8 @@ const getAuthState = async (request: NextRequest) => {
 
   if (sessionError) {
     console.error("Session error:", sessionError)
-    return { response: NextResponse.redirect(new URL("/auth/login", request.url)), session: null }
+    // Do not redirect here; let public routes load and protect only later
+    return { response, session: null }
   }
 
   // Cache successful result
@@ -130,7 +131,7 @@ export async function updateSession(request: NextRequest) {
     return response
   } catch (error) {
     console.error("Middleware error:", error)
-    // On error, redirect to login
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+  // On error, allow the request to proceed (public routes will still load)
+  return NextResponse.next()
   }
 }

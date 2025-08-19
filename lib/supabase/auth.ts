@@ -3,7 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js"
 const RETRY_DELAY = 150 // ms
 const MAX_RETRIES = 2
 
-export const withAuthRetry = async (fn: () => Promise<any>, retries = MAX_RETRIES) => {
+export const withAuthRetry = async <T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> => {
   try {
     return await fn()
   } catch (err: any) {
@@ -27,8 +27,8 @@ export const getAuthSession = async (supabase: SupabaseClient) => {
 }
 
 export const getUserProfile = async (supabase: SupabaseClient, userId: string) => {
-  return withAuthRetry(() =>
-    supabase
+  return withAuthRetry(async () =>
+    await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
