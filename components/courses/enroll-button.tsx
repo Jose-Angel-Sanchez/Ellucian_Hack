@@ -2,9 +2,10 @@
 
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Loader2, Play, BookOpen } from "lucide-react"
+import { toast } from "sonner"
 
 interface EnrollButtonProps {
   courseId: string
@@ -15,27 +16,34 @@ interface EnrollButtonProps {
 export default function EnrollButton({ courseId, isEnrolled, userId }: EnrollButtonProps) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClient()
 
   const handleEnroll = async () => {
+    if (!userId || !courseId) {
+      toast.error("Error: faltan datos requeridos")
+      return
+    }
     setLoading(true)
 
     try {
-      const { error } = await supabase.from("user_progress").insert({
-        user_id: userId,
-        course_id: courseId,
-        progress_percentage: 0,
-        status: "in_progress",
-      })
-
-      if (error) {
-        console.error("Error enrolling in course:", error)
+      // Call server route to handle enrollment under RLS
+      const resp = await fetch(`/api/courses/${courseId}/enroll`, { method: 'POST' })
+      const payload = await resp.json().catch(() => ({}))
+      if (!resp.ok) {
+        toast.error(payload?.error || 'Error al inscribirse')
+        return
+      }
+      if (payload?.alreadyEnrolled) {
+        toast.info('Ya estás inscrito en este curso')
         return
       }
 
       // Refresh the page to show updated enrollment status
+  toast.success("¡Inscripción exitosa!")
       router.refresh()
     } catch (error) {
-      console.error("Error enrolling in course:", error)
+      console.warn("Error enrolling in course:", error)
+      toast.error("Error inesperado al inscribirse")
     } finally {
       setLoading(false)
     }

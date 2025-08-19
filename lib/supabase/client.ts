@@ -26,3 +26,10 @@ export function createClient() {
     }
   )
 }
+
+// Optional: stabilize a singleton to avoid multiple GoTrueClient warnings
+let singleton: ReturnType<typeof createClient> | null = null
+export const supabaseClient = (): ReturnType<typeof createClient> => {
+  if (!singleton) singleton = createClient()
+  return singleton
+}

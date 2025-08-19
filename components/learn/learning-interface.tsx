@@ -18,7 +18,7 @@ import {
   Settings,
 } from "lucide-react"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 interface LearningInterfaceProps {
@@ -34,6 +34,7 @@ export default function LearningInterface({ course, userProgress, userId }: Lear
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(userProgress.progress_percentage || 0)
   const router = useRouter()
+  const supabase = createClient()
 
   const modules = course.content?.modules || []
   const currentModule = modules[currentModuleIndex]

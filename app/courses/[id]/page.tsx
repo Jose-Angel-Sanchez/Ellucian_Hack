@@ -8,13 +8,7 @@ import Link from "next/link"
 import { redirect, notFound } from "next/navigation"
 import EnrollButton from "@/components/courses/enroll-button"
 
-interface CoursePageProps {
-  params: {
-    id: string
-  }
-}
-
-export default async function CoursePage({ params }: CoursePageProps) {
+export default async function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = createClient()
 
   // Check authentication
@@ -27,9 +21,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
   }
 
   // Fetch course details
+  const { id } = await params
   const { data: course, error } = await ((supabase.from("courses") as any)
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("is_active", true)
     .single())
 
@@ -41,8 +36,8 @@ export default async function CoursePage({ params }: CoursePageProps) {
   const { data: userProgress } = await ((supabase.from("user_progress") as any)
     .select("*")
     .eq("user_id", user.id)
-    .eq("course_id", course.id)
-    .single())
+    .eq("course_id", id)
+    .maybeSingle())
 
   const getDifficultyColor = (level: string) => {
     switch (level) {
