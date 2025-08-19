@@ -40,7 +40,7 @@ export default function LoginForm() {
   // Handle successful login by redirecting
   useEffect(() => {
     if (state?.success) {
-      const destination = state?.isAdmin ? "/admin/courses" : "/dashboard"
+      const destination = state?.isAdmin ? "/manage" : "/dashboard"
       router.push(destination)
     }
   }, [state, router])

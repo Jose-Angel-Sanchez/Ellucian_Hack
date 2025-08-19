@@ -33,8 +33,8 @@ export default function EditCourseClient({ course }: { course: any }) {
         throw new Error(error.message || resp.statusText)
       }
 
-      setMessage('✅ Curso actualizado correctamente')
-      setTimeout(() => router.push('/admin/courses'), 1000)
+  setMessage('✅ Curso actualizado correctamente')
+  setTimeout(() => router.push('/manage'), 1000)
     } catch (error: any) {
       setMessage(`❌ Error: ${error.message}`)
     }
@@ -50,8 +50,8 @@ export default function EditCourseClient({ course }: { course: any }) {
         const error = await resp.json()
         throw new Error(error.message || resp.statusText)
       }
-      setMessage('✅ Curso ocultado correctamente')
-      setTimeout(() => router.push('/admin/courses'), 1000)
+  setMessage('✅ Curso ocultado correctamente')
+  setTimeout(() => router.push('/manage'), 1000)
     } catch (error: any) {
       setMessage(`❌ Error: ${error.message}`)
       setIsDeleting(false)

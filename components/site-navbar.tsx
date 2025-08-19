@@ -45,12 +45,12 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
                 </Link>
                 {user.email?.includes("@alumno.buap.mx") && (
                   <>
-                    <Link href="/test-courses">
+                    <Link href="/manage">
                       <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
                         🚀 Gestión de Cursos
                       </Button>
                     </Link>
-                    <Link href="/admin/courses">
+                    <Link href="/manage">
                       <Button variant="ghost">Administrar</Button>
                     </Link>
                     <Link href="/admin/content">
@@ -114,12 +114,12 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
                 <>
                   {user.email?.includes("@alumno.buap.mx") && (
                     <>
-                      <Link href="/test-courses" className="w-full">
+                      <Link href="/manage" className="w-full">
                         <Button onClick={() => setOpen(false)} variant="default" className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white">
                           🚀 Gestión de Cursos
                         </Button>
                       </Link>
-                      <Link href="/admin/courses" className="w-full">
+                      <Link href="/manage" className="w-full">
                         <Button onClick={() => setOpen(false)} variant="ghost" className="w-full justify-start">Administrar</Button>
                       </Link>
                       <Link href="/admin/content" className="w-full">

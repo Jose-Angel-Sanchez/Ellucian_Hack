@@ -33,7 +33,7 @@ export default async function DashboardPage() {
     state.profile = userAndProfile.profile
 
     // Get user's enrolled courses with progress with retry
-    const progressResult = await withAuthRetry(() =>
+  const progressResult: any = await withAuthRetry(() =>
       ((supabase.from("user_progress") as any).select(`
         *,
         courses (
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
     state.userProgress = progressResult.data || []
 
     // Get recent courses for recommendations with retry
-    const coursesResult = await withAuthRetry(() =>
+  const coursesResult: any = await withAuthRetry(() =>
       ((supabase.from("courses") as any).select("*") as any)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -87,14 +87,14 @@ export default async function DashboardPage() {
               </div>
             </div>
             {/* Admin quick actions */}
-            {state.user?.email?.endsWith("@alumno.buap.mx") && (
+      {state.user?.email?.endsWith("@alumno.buap.mx") && (
               <div className="flex gap-2">
-                <Link href="/admin/courses?tab=create">
+        <Link href="/manage?tab=create">
                   <Button className="bg-primary text-white">
                     <Plus className="h-4 w-4 mr-2" /> Crear curso
                   </Button>
                 </Link>
-                <Link href="/admin/courses">
+        <Link href="/manage">
                   <Button variant="outline">Administrar cursos</Button>
                 </Link>
               </div>

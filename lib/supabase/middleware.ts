@@ -12,6 +12,7 @@ const publicRoutes = [
 ]
 
 const adminRoutes = [
+  "/manage",
   "/admin/courses",
   "/admin/content"
 ]
@@ -96,7 +97,7 @@ export async function updateSession(request: NextRequest) {
         if (!destination) {
           const { data: { user } } = await supabase.auth.getUser()
           const isAdmin = !!user?.email?.includes("@alumno.buap.mx")
-          destination = isAdmin ? "/admin/courses" : "/dashboard"
+          destination = isAdmin ? "/manage" : "/dashboard"
         }
         return NextResponse.redirect(new URL(destination, request.url))
       } catch (error) {
