@@ -86,19 +86,6 @@ export default async function DashboardPage() {
                 <p className="text-gray-600 mt-1">Continúa tu viaje de aprendizaje</p>
               </div>
             </div>
-            {/* Admin quick actions */}
-      {state.user?.email?.endsWith("@alumno.buap.mx") && (
-              <div className="flex gap-2">
-        <Link href="/manage?tab=create">
-                  <Button className="bg-primary text-white">
-                    <Plus className="h-4 w-4 mr-2" /> Crear curso
-                  </Button>
-                </Link>
-        <Link href="/manage">
-                  <Button variant="outline">Administrar cursos</Button>
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       </div>

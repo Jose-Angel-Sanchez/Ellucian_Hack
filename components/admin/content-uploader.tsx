@@ -11,7 +11,14 @@ import { Loader2, Upload } from "lucide-react"
 
 type ContentType = "video" | "audio" | "image" | "blog"
 
-export default function ContentUploader({ userId }: { userId: string }) {
+interface Props {
+  userId: string
+  defaultCourseIds?: string[]
+  lockToCourses?: boolean
+  initialCourses?: { id: string; title: string }[]
+}
+
+export default function ContentUploader({ userId, defaultCourseIds = [], lockToCourses = false, initialCourses }: Props) {
   const [isUploading, setIsUploading] = useState(false)
   const [contentType, setContentType] = useState<ContentType>("blog")
   const [title, setTitle] = useState("")
@@ -19,8 +26,8 @@ export default function ContentUploader({ userId }: { userId: string }) {
   const [file, setFile] = useState<File | null>(null)
   const [transcription, setTranscription] = useState("")
   const [duration, setDuration] = useState<string>("")
-  const [courses, setCourses] = useState<{ id: string; title: string }[]>([])
-  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
+  const [courses, setCourses] = useState<{ id: string; title: string }[]>(initialCourses || [])
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(defaultCourseIds)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -41,8 +48,9 @@ export default function ContentUploader({ userId }: { userId: string }) {
     }
   }
 
-  // Load courses created by this user to allow linking
+  // Load courses created by this user if not provided by server
   useEffect(() => {
+    if (initialCourses && initialCourses.length > 0) return
     const loadCourses = async () => {
       const { data, error } = await supabase
         .from("courses")
@@ -52,7 +60,21 @@ export default function ContentUploader({ userId }: { userId: string }) {
       if (!error && data) setCourses(data as any)
     }
     loadCourses()
-  }, [supabase, userId])
+  }, [supabase, userId, initialCourses?.length])
+
+  // Keep courses in sync when server-provided list changes
+  useEffect(() => {
+    if (initialCourses && initialCourses.length > 0) {
+      setCourses(initialCourses)
+    }
+  }, [initialCourses?.map(c => c.id).join(',')])
+
+  // Keep selectedCourseIds in sync if defaultCourseIds prop changes
+  useEffect(() => {
+    if (defaultCourseIds && defaultCourseIds.length > 0) {
+      setSelectedCourseIds(defaultCourseIds)
+    }
+  }, [defaultCourseIds?.join(',')])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -106,7 +128,7 @@ export default function ContentUploader({ userId }: { userId: string }) {
       toast({ title: "Duración inválida", description: "Ingresa minutos válidos.", variant: "destructive" })
       return
     }
-    if (contentType !== "blog" && selectedCourseIds.length === 0) {
+    if (selectedCourseIds.length === 0) {
       toast({ title: "Selecciona curso(s)", description: "Elige al menos un curso para asociar el contenido.", variant: "destructive" })
       return
     }
@@ -144,9 +166,10 @@ export default function ContentUploader({ userId }: { userId: string }) {
       }
 
       phase = "insert"
-      const { data: inserted, error: insertError } = await supabase
-        .from("content")
-        .insert({
+      const apiResp = await fetch('/api/content/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title,
           description,
           type: contentType,
@@ -154,25 +177,12 @@ export default function ContentUploader({ userId }: { userId: string }) {
           file_path: filePathSaved || null,
           transcription: transcription || null,
           duration: minutes,
-          created_by: userId,
+          course_ids: selectedCourseIds,
         })
-        .select("id")
-        .single()
-
-      if (insertError) {
-        const msg = getErrorMessage(insertError)
-        throw new Error(`Error al registrar en la BD: ${msg}`)
-      }
-
-      // Associate with selected courses
-      const contentId = (inserted as any)?.id
-  if (contentId && contentType !== "blog" && selectedCourseIds.length > 0) {
-        const { error: linkError } = await supabase
-          .from("course_content")
-          .insert(selectedCourseIds.map((cid) => ({ course_id: cid, content_id: contentId })))
-        if (linkError) {
-          throw new Error(`Error al asociar con curso(s): ${getErrorMessage(linkError)}`)
-        }
+      })
+      if (!apiResp.ok) {
+        const errText = await apiResp.text().catch(() => "")
+        throw new Error(`Error al registrar en la BD: ${errText || apiResp.statusText}`)
       }
 
       toast({
@@ -180,13 +190,13 @@ export default function ContentUploader({ userId }: { userId: string }) {
         description: "El contenido se ha subido correctamente.",
       })
 
-      // Limpiar formulario
+  // Limpiar formulario
       setTitle("")
       setDescription("")
       setFile(null)
       setTranscription("")
   setDuration("")
-  setSelectedCourseIds([])
+  setSelectedCourseIds(lockToCourses && defaultCourseIds.length > 0 ? defaultCourseIds : [])
       
     } catch (error) {
       const message = getErrorMessage(error)
@@ -243,7 +253,7 @@ export default function ContentUploader({ userId }: { userId: string }) {
           onChange={(e) => setDuration(e.target.value)}
         />
 
-        {contentType !== "blog" && (
+        {contentType !== "blog" && !lockToCourses && (
           <Input
             type="file"
             onChange={handleFileChange}
@@ -257,6 +267,14 @@ export default function ContentUploader({ userId }: { userId: string }) {
             required
           />
         )}
+        {contentType !== "blog" && lockToCourses && (
+          <Input
+            type="file"
+            onChange={handleFileChange}
+            accept={contentType === "video" ? "video/*" : contentType === "audio" ? "audio/*" : "image/*"}
+            required
+          />
+        )}
 
         {(contentType === "video" || contentType === "audio") && transcription && (
           <Textarea
@@ -267,32 +285,32 @@ export default function ContentUploader({ userId }: { userId: string }) {
           />
         )}
 
-        {/* Course multi-select via checkboxes (not needed for blogs) */}
-        {contentType !== "blog" && (
+        {/* Course multi-select dropdown (always available) */}
+        {!lockToCourses ? (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Agregar a curso(s)</label>
-            <div className="grid gap-2 max-h-48 overflow-auto p-2 border rounded">
-              {courses.map((c) => {
-                const checked = selectedCourseIds.includes(c.id)
-                return (
-                  <label key={c.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        setSelectedCourseIds((prev) =>
-                          e.target.checked ? [...prev, c.id] : prev.filter((id) => id !== c.id)
-                        )
-                      }}
-                    />
-                    <span>{c.title}</span>
-                  </label>
-                )
-              })}
-              {courses.length === 0 && (
-                <div className="text-xs text-gray-500">No tienes cursos creados todavía.</div>
-              )}
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Asignar a curso(s)</label>
+            <select
+              multiple
+              value={selectedCourseIds}
+              onChange={(e) => {
+                const options = Array.from(e.target.selectedOptions).map((o) => o.value)
+                setSelectedCourseIds(options)
+              }}
+              className="w-full p-2 border rounded h-40"
+            >
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+            {courses.length === 0 && (
+              <div className="text-xs text-gray-500 mt-1">No tienes cursos creados todavía.</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-600">
+            Asociando a {selectedCourseIds.length} curso(s) seleccionado(s).
           </div>
         )}
       </div>

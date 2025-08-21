@@ -25,9 +25,18 @@ interface LearningInterfaceProps {
   course: any
   userProgress: any
   userId: string
+  contentItems?: Array<{
+    id: string
+    title: string
+    type: string
+    file_url?: string | null
+    description?: string | null
+    transcription?: string | null
+    duration?: number | null
+  }>
 }
 
-export default function LearningInterface({ course, userProgress, userId }: LearningInterfaceProps) {
+export default function LearningInterface({ course, userProgress, userId, contentItems = [] }: LearningInterfaceProps) {
   const [currentModuleIndex, setCurrentModuleIndex] = useState(0)
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0)
   const [completedLessons, setCompletedLessons] = useState<string[]>(userProgress.completed_sections || [])
@@ -36,7 +45,18 @@ export default function LearningInterface({ course, userProgress, userId }: Lear
   const router = useRouter()
   const supabase = createClient()
 
-  const modules = course.content?.modules || []
+  // Build modules from explicit course.content or fallback to linked content items
+  const modules = (course.content?.modules && course.content?.modules.length > 0)
+    ? course.content.modules
+    : (contentItems.length > 0
+        ? [{ id: 'linked-1', title: 'Contenido del curso', lessons: contentItems.map((c, idx) => ({
+            id: c.id,
+            title: c.title,
+            type: c.type === 'image' ? 'interactive' : (c.type || 'video'),
+            duration: c.duration || 5,
+            file_url: c.file_url,
+          })) }]
+        : [])
   const currentModule = modules[currentModuleIndex]
   const currentLesson = currentModule?.lessons?.[currentLessonIndex]
 
