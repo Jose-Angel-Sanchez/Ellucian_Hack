@@ -6,15 +6,6 @@ import { BookOpen, Brain, Award, Users } from "lucide-react"
 import { HomePageClient } from "@/components/home/home-page"
 
 export default async function HomePage() {
-  // If Supabase is not configured, show setup message
-  if (!isSupabaseConfigured) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">Connect Supabase to get started</h1>
-      </div>
-    )
-  }
-
   // Check if user is already logged in
   const supabase = createClient()
   const {
