@@ -7,6 +7,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import ClientWrapper from "@/components/wrappers/client-wrapper"
 import CoursesListMinimal from "@/components/courses/courses-list-minimal"
+import CourseCard from "@/components/courses/course-card"
 
 export default async function CoursesPage() {
   const supabase = createClient()
@@ -43,15 +44,20 @@ export default async function CoursesPage() {
     )
   }
 
-  // Fetch courses for non-admin catalog
+  // Fetch courses for non-admin catalog with ratings and enrollment info
   const { data: courses, error } = await ((supabase
     .from("courses") as any)
-    .select("*")
+    .select(`
+      *,
+      ratings:feedback(rating, user_id, feedback_type),
+      enrollments:user_progress(user_id),
+      sections:course_sections(id)
+    `)
     .eq("is_active", true)
     .order("created_at", { ascending: false }))
 
   if (error) {
-    console.error("Error fetching courses:", error)
+    console.error("Error fetching courses:", (error as any)?.message || error)
   }
 
   const getDifficultyColor = (level: string) => {
@@ -79,6 +85,14 @@ export default async function CoursesPage() {
         return level
     }
   }
+
+  const getAverageRating = (ratings: any[]) => {
+    if (!ratings || ratings.length === 0) return 0
+    const sum = ratings.reduce((acc, curr) => acc + (curr.rating || 0), 0)
+    return (sum / ratings.length).toFixed(1)
+  }
+
+  // Rating and enrollment handlers are implemented inside CourseCard (client component)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -121,50 +135,11 @@ export default async function CoursesPage() {
         {/* Courses Grid */}
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses?.map((course: any) => (
-            <Card key={course.id} className="hover:shadow-lg transition-shadow duration-200">
-              <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <Badge className={getDifficultyColor(course.difficulty_level)}>
-                    {getDifficultyLabel(course.difficulty_level)}
-                  </Badge>
-                  <Badge variant="secondary">{course.category}</Badge>
-                </div>
-                <CardTitle className="text-xl">{course.title}</CardTitle>
-                <CardDescription className="text-sm text-gray-600 line-clamp-3">{course.description}</CardDescription>
-              </CardHeader>
-
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <div className="flex items-center space-x-1">
-                    <Clock className="h-4 w-4" />
-                    <span>
-                      {Math.floor(course.estimated_duration / 60)}h {course.estimated_duration % 60}m
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <BookOpen className="h-4 w-4" />
-                    <span>{course.content?.modules?.length || 0} módulos</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <div className="flex items-center space-x-1">
-                    <Users className="h-4 w-4" />
-                    <span>1,234 estudiantes</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span>4.8</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Link href={`/courses/${course.id}`}>
-                    <Button className="w-full bg-primary hover:bg-primary-hover text-white">Ver Curso</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <CourseCard
+              key={course.id}
+              course={course}
+              user={user}
+            />
           ))}
         </div>
 

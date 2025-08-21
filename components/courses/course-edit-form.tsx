@@ -27,6 +27,7 @@ export default function CourseEditForm({ userId, courseId }: { userId: string; c
     difficulty_level: "",
     estimated_duration: 0,
   })
+  const [learningObjectivesText, setLearningObjectivesText] = useState<string>("")
   const [durationInput, setDurationInput] = useState<string>("0")
 
   useEffect(() => {
@@ -51,6 +52,8 @@ export default function CourseEditForm({ userId, courseId }: { userId: string; c
           estimated_duration: est,
         })
         setDurationInput(String(est))
+        const lo: string[] = Array.isArray((data as any).learning_objectives) ? (data as any).learning_objectives : []
+        setLearningObjectivesText(lo.join("\n"))
       }
       setLoading(false)
     }
@@ -68,6 +71,11 @@ export default function CourseEditForm({ userId, courseId }: { userId: string; c
       return
     }
 
+    const learning_objectives = learningObjectivesText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
     const { error } = await supabase
       .from("courses")
       .update({
@@ -76,6 +84,7 @@ export default function CourseEditForm({ userId, courseId }: { userId: string; c
         category: form.category,
         difficulty_level: form.difficulty_level,
         estimated_duration: minutes,
+        learning_objectives,
       })
       .eq("id", courseId)
       .eq("created_by", userId)
@@ -114,6 +123,15 @@ export default function CourseEditForm({ userId, courseId }: { userId: string; c
         onChange={(e) => setDurationInput(e.target.value)}
         placeholder="Duración (min)"
       />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Lo que aprenderás (una por línea)</label>
+        <Textarea
+          value={learningObjectivesText}
+          onChange={(e) => setLearningObjectivesText(e.target.value)}
+          placeholder={"Ejemplo:\n- Comprender los fundamentos\n- Construir un proyecto real"}
+          rows={4}
+        />
+      </div>
       <Button disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}</Button>
     </form>
   )

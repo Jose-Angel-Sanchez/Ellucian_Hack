@@ -46,6 +46,7 @@ export default function CourseFormMinimal({
   const [category, setCategory] = useState("")
   const [difficultyLevel, setDifficultyLevel] = useState("")
   const [estimatedDuration, setEstimatedDuration] = useState("")
+  const [learningObjectivesText, setLearningObjectivesText] = useState("")
   const [message, setMessage] = useState("")
   
   const supabase = createClient()
@@ -76,6 +77,11 @@ export default function CourseFormMinimal({
       }
 
       // Create course via server API to leverage server-side session (RLS-friendly)
+      const learning_objectives = learningObjectivesText
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+
       const resp = await fetch('/api/courses/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +90,8 @@ export default function CourseFormMinimal({
           description,
           category,
           difficulty_level: difficultyLevel,
-          estimated_duration: parseInt(estimatedDuration, 10)
+          estimated_duration: parseInt(estimatedDuration, 10),
+          learning_objectives,
         })
       })
 
@@ -106,6 +113,7 @@ export default function CourseFormMinimal({
       setCategory("")
       setDifficultyLevel("")
       setEstimatedDuration("")
+  setLearningObjectivesText("")
       
       // Clear message after 3 seconds
       setTimeout(() => {
@@ -204,6 +212,19 @@ export default function CourseFormMinimal({
             />
           </div>
         </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Lo que aprenderás (una por línea)
+            </label>
+            <textarea
+              placeholder={"Ejemplo:\n- Comprender los fundamentos\n- Construir un proyecto real"}
+              value={learningObjectivesText}
+              onChange={(e) => setLearningObjectivesText(e.target.value)}
+              rows={4}
+              className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
       </div>
 
       <button 

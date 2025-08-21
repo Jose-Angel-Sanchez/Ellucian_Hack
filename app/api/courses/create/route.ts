@@ -10,10 +10,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json().catch(() => ({}))
-    const { title, description, category, difficulty_level, estimated_duration } = body || {}
+  const body = await request.json().catch(() => ({}))
+  const { title, description, category, difficulty_level, estimated_duration, learning_objectives } = body || {}
 
-    if (!title || !description || !category || !difficulty_level || !estimated_duration) {
+  if (!title || !description || !category || !difficulty_level || !estimated_duration) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
         difficulty_level,
         estimated_duration: Number.parseInt(String(estimated_duration), 10),
         created_by: user.id,
+        learning_objectives: Array.isArray(learning_objectives) ? learning_objectives : undefined,
       })
       .select('id')
       .single()

@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
     const body = await request.json().catch(() => ({}))
 
-    const { error } = await supabase
+  const { error } = await supabase
       .from('courses')
       .update({
         title: body.title,
@@ -27,6 +27,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         category: body.category,
         difficulty_level: body.difficulty_level,
         estimated_duration: body.estimated_duration != null ? Number.parseInt(String(body.estimated_duration), 10) : undefined,
+    learning_objectives: Array.isArray(body.learning_objectives) ? body.learning_objectives : undefined,
       })
       .eq('id', id)
 

@@ -10,12 +10,20 @@ export default function EditCourseClient({ course }: { course: any }) {
   const [category, setCategory] = useState(course.category)
   const [difficulty, setDifficulty] = useState(course.difficulty_level)
   const [duration, setDuration] = useState(course.estimated_duration)
+  const [learningObjectivesText, setLearningObjectivesText] = useState(
+    Array.isArray(course.learning_objectives) ? course.learning_objectives.join('\n') : ''
+  )
   const [message, setMessage] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const learning_objectives = learningObjectivesText
+        .split('\n')
+        .map((s: string) => s.trim())
+        .filter(Boolean)
+
       const resp = await fetch(`/api/courses/${course.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -25,6 +33,7 @@ export default function EditCourseClient({ course }: { course: any }) {
           category,
           difficulty_level: difficulty,
           estimated_duration: Number(duration),
+          learning_objectives,
         }),
       })
 
@@ -86,6 +95,17 @@ export default function EditCourseClient({ course }: { course: any }) {
             className="w-full p-2 border rounded"
             rows={4}
             required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1">Lo que aprenderás (una por línea)</label>
+          <textarea
+            value={learningObjectivesText}
+            onChange={(e) => setLearningObjectivesText(e.target.value)}
+            className="w-full p-2 border rounded"
+            rows={4}
+            placeholder={"Ejemplo:\n- Comprender fundamentos\n- Construir un proyecto real"}
           />
         </div>
 

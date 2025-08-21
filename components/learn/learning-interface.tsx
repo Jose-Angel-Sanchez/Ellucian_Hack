@@ -129,12 +129,35 @@ export default function LearningInterface({ course, userProgress, userId }: Lear
 
   if (!currentModule || !currentLesson) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Curso no disponible</h2>
-          <Link href="/dashboard">
-            <Button>Volver al Dashboard</Button>
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        <div>
+          <Link href={`/courses/${course?.id}`} className="text-blue-600 hover:underline inline-flex items-center">
+            <ArrowLeft className="h-4 w-4 mr-1" /> Volver al curso
           </Link>
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold mb-2">{course?.title}</h1>
+          <p className="text-gray-700">{course?.description}</p>
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+          <div><strong>Dificultad:</strong> {course?.difficulty_level || 'N/A'}</div>
+          <div><strong>Duración estimada:</strong> {Math.floor((course?.estimated_duration||0)/60)}h {(course?.estimated_duration||0)%60}m</div>
+        </div>
+        {Array.isArray(course?.learning_objectives) && course?.learning_objectives.length > 0 && (
+          <div>
+            <h2 className="text-xl font-semibold mb-2">Lo que aprenderás</h2>
+            <ul className="list-disc list-inside space-y-1">
+              {course!.learning_objectives.map((item: string, idx: number) => (
+                <li key={idx}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-blue-700">
+            Este curso aún no tiene contenido publicado. Puedes revisar los detalles o volver a intentarlo más tarde.
+          </p>
+          <Link href={`/courses/${course?.id}`} className="text-blue-600 hover:underline mt-2 inline-block">Ver página del curso</Link>
         </div>
       </div>
     )

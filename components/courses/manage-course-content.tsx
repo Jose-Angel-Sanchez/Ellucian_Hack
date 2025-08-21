@@ -168,7 +168,7 @@ function SectionEditor({ section, onDelete }: { section: Section; onDelete: () =
       <div className="flex items-center gap-2">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         <Button onClick={saveTitle}>Guardar</Button>
-        <Button variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-1" />Eliminar</Button>
+        <Button variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-1" />AAA</Button>
       </div>
 
       <div className="space-y-2">
@@ -205,7 +205,7 @@ function ItemRow({ item, onDelete }: { item: SectionItem; onDelete: () => void }
       </div>
       <div className="flex gap-2 mt-2">
         <Button onClick={save}>Guardar</Button>
-        <Button variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-1" />Eliminar</Button>
+        <Button variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-1" />AAAA</Button>
       </div>
     </div>
   )

@@ -8,12 +8,14 @@ import { isMasterAdminEmail } from "@/lib/utils/isMasterAdmin"
 type Course = {
   id: string
   title: string
+  description?: string
   category: string
   difficulty_level: string
   estimated_duration: number
   is_active: boolean
   created_at: string
   created_by: string | null
+  learning_objectives?: string[]
 }
 
 export default function CoursesListMinimal({ userId }: { userId: string }) {
@@ -24,7 +26,15 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<{ title: string; category: string; difficulty_level: string; estimated_duration: number; } | null>(null)
+  const [editValues, setEditValues] = useState<{
+    title: string
+    description: string
+    category: string
+    difficulty_level: string
+    estimated_duration: number
+    learning_objectives_text: string
+  } | null>(null)
+  const [aiGenerating, setAiGenerating] = useState<boolean>(false)
   const supabase = createClient()
   const isMaster = useMemo(() => isMasterAdminEmail(user?.email), [user?.email])
   const [ownerFilter, setOwnerFilter] = useState<"mine" | "all">("mine")
@@ -89,9 +99,11 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
     setEditingId(course.id)
     setEditValues({
       title: course.title,
+  description: course.description || "",
       category: course.category,
       difficulty_level: course.difficulty_level,
       estimated_duration: course.estimated_duration,
+  learning_objectives_text: Array.isArray(course.learning_objectives) ? course.learning_objectives.join("\n") : "",
     })
   }
 
@@ -103,14 +115,21 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
   const saveEdit = async (id: string) => {
     if (!editValues) return
     try {
+      const learning_objectives = editValues.learning_objectives_text
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+
       const resp = await fetch(`/api/courses/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editValues.title,
+          description: editValues.description,
           category: editValues.category,
           difficulty_level: editValues.difficulty_level,
           estimated_duration: Number.parseInt(String(editValues.estimated_duration), 10),
+          learning_objectives,
         })
       })
       if (!resp.ok) {
@@ -118,13 +137,62 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
         throw new Error(err?.error || resp.statusText)
       }
 
-      setCourses(prev => prev.map(c => c.id === id ? { ...c, ...editValues } as Course : c))
+      setCourses(prev => prev.map(c => (
+        c.id === id
+          ? {
+              ...c,
+              title: editValues.title,
+              description: editValues.description,
+              category: editValues.category,
+              difficulty_level: editValues.difficulty_level,
+              estimated_duration: editValues.estimated_duration,
+              learning_objectives,
+            } as Course
+          : c
+      )))
       setMessage("✅ Curso actualizado correctamente")
       setTimeout(() => setMessage(""), 3000)
       cancelEdit()
     } catch (error) {
       console.error("Error al actualizar:", error)
       setMessage("❌ Error al actualizar el curso")
+    }
+  }
+
+  const generateObjectivesAI = async () => {
+    if (!editValues) return
+    if (!editValues.title || editValues.title.trim().length < 3) {
+      setMessage("❌ Agrega un título del curso para generar objetivos con IA")
+      setTimeout(() => setMessage(""), 3000)
+      return
+    }
+    try {
+      setAiGenerating(true)
+      const prompt = `Genera entre 5 y 8 objetivos de aprendizaje claros, concisos y accionables para un curso titulado "${editValues.title}".${editValues.description ? `\nDescripción del curso: ${editValues.description}` : ''}\nResponde solo con una lista en español, una línea por objetivo, sin numeración y sin texto adicional.`
+      const resp = await fetch('/api/test-gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        throw new Error(err?.error || 'No se pudo generar contenido con IA')
+      }
+      const json = await resp.json()
+      const raw: string = json?.response || ''
+      const cleaned = raw
+        .replace(/^\s*Objetivos?:?/i, '')
+        .replace(/^[\s\-•\*]+/gm, '')
+        .trim()
+      setEditValues(v => ({ ...(v as any), learning_objectives_text: cleaned }))
+      setMessage('✅ Objetivos generados; revisa y guarda los cambios')
+      setTimeout(() => setMessage(''), 3000)
+    } catch (e: any) {
+      console.error(e)
+      setMessage(`❌ Error al generar con IA: ${e?.message || e}`)
+      setTimeout(() => setMessage(''), 4000)
+    } finally {
+      setAiGenerating(false)
     }
   }
 
@@ -225,17 +293,46 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   {editingId === course.id ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <input
                         className="w-full p-2 border rounded"
                         value={editValues?.title || ''}
                         onChange={(e) => setEditValues(v => ({ ...(v as any), title: e.target.value }))}
+                        placeholder="Título"
                       />
+                      <textarea
+                        className="w-full p-2 border rounded"
+                        value={editValues?.description || ''}
+                        onChange={(e) => setEditValues(v => ({ ...(v as any), description: e.target.value }))}
+                        rows={3}
+                        placeholder="Descripción"
+                      />
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Lo que aprenderás (una por línea)</label>
+                        <textarea
+                          className="w-full p-2 border rounded"
+                          value={editValues?.learning_objectives_text || ''}
+                          onChange={(e) => setEditValues(v => ({ ...(v as any), learning_objectives_text: e.target.value }))}
+                          rows={3}
+                          placeholder={"- Comprender fundamentos\n- Construir un proyecto real"}
+                        />
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={generateObjectivesAI}
+                            disabled={aiGenerating}
+                            className="px-3 py-1 text-sm bg-primary text-white rounded hover:opacity-90 disabled:opacity-50"
+                          >
+                            {aiGenerating ? 'Generando…' : 'Autocompletar con IA'}
+                          </button>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-3 gap-2">
                         <input
                           className="p-2 border rounded"
                           value={editValues?.category || ''}
                           onChange={(e) => setEditValues(v => ({ ...(v as any), category: e.target.value }))}
+                          placeholder="Categoría"
                         />
                         <select
                           className="p-2 border rounded"
@@ -251,6 +348,7 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
                           className="p-2 border rounded"
                           value={editValues?.estimated_duration || 0}
                           onChange={(e) => setEditValues(v => ({ ...(v as any), estimated_duration: Number(e.target.value) }))}
+                          placeholder="Duración (min)"
                         />
                       </div>
                     </div>
@@ -285,16 +383,16 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
                       </button>
                       <button
                         onClick={cancelEdit}
-                        className="px-3 py-1 text-sm bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                        className="px-3 py-1 text-sm bg-blue-400 text-white rounded hover:bg-blue-300 transition-colors"
                       >
-                        ✖️ Cancelar
+                        ❌ Cancelar
                       </button>
                     </>
                   ) : (
                     <>
                       <button
                         onClick={() => startEdit(course)}
-                        className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                       >
                         ✏️ Editar
                       </button>

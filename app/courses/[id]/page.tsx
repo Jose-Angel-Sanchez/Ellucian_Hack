@@ -23,7 +23,12 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
   // Fetch course details
   const { id } = await params
   const { data: course, error } = await ((supabase.from("courses") as any)
-    .select("*")
+    .select(`
+      *,
+      ratings:feedback(rating, user_id, feedback_type),
+      enrollments:user_progress(user_id),
+      sections:course_sections(id)
+    `)
     .eq("id", id)
     .eq("is_active", true)
     .single())
@@ -67,6 +72,13 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
 
   const isEnrolled = !!userProgress
   const progressPercentage = userProgress?.progress_percentage || 0
+  const enrolledCount = (course as any)?.enrollments?.length || 0
+  const ratingsArr = (((course as any)?.ratings) || []).filter((r: any) => r.feedback_type === 'course' || r.feedback_type == null)
+  const averageRating = ratingsArr.length
+    ? (ratingsArr.reduce((acc: number, r: any) => acc + (r.rating || 0), 0) / ratingsArr.length).toFixed(1)
+    : '0.0'
+  const modulesCount = ((course as any)?.sections?.length ?? (course as any)?.content?.modules?.length ?? 0)
+  const hasContent = modulesCount > 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -97,15 +109,15 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                 </div>
                 <div className="flex items-center space-x-1">
                   <BookOpen className="h-4 w-4" />
-                  <span>{course.content?.modules?.length || 0} módulos</span>
+                  <span>{modulesCount} módulos</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Users className="h-4 w-4" />
-                  <span>1,234 estudiantes</span>
+                  <span>{enrolledCount} estudiantes</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span>4.8 (156 reseñas)</span>
+                  <span>{averageRating} ({ratingsArr.length} reseñas)</span>
                 </div>
               </div>
 
@@ -120,18 +132,24 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
               )}
             </div>
 
-            {/* Enrollment Card */}
+            {/* Enrollment Card or details-only when no content */}
             <div className="lg:col-span-1">
               <Card className="lg:sticky lg:top-6">
                 <CardHeader>
-                  <CardTitle className="text-2xl">{isEnrolled ? "Continuar Aprendiendo" : "Comenzar Curso"}</CardTitle>
+                  <CardTitle className="text-2xl">
+                    {hasContent ? (isEnrolled ? "Continuar Aprendiendo" : "Comenzar Curso") : "Detalles del curso"}
+                  </CardTitle>
                   <CardDescription>
-                    {isEnrolled ? `Has completado ${progressPercentage}% del curso` : "Únete a miles de estudiantes"}
+                    {hasContent
+                      ? (isEnrolled ? `Has completado ${progressPercentage}% del curso` : "Únete a miles de estudiantes")
+                      : "Este curso aún no tiene contenido publicado."}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <EnrollButton courseId={course.id} isEnrolled={isEnrolled} userId={user.id} />
-                </CardContent>
+                {hasContent && (
+                  <CardContent>
+                    <EnrollButton courseId={course.id} isEnrolled={isEnrolled} userId={user.id} />
+                  </CardContent>
+                )}
               </Card>
             </div>
           </div>
@@ -183,41 +201,45 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
               <CardHeader>
                 <CardTitle>Contenido del curso</CardTitle>
                 <CardDescription>
-                  {course.content?.modules?.length || 0} módulos • {Math.floor(course.estimated_duration / 60)} horas de
+                  {modulesCount} módulos • {Math.floor(course.estimated_duration / 60)} horas de
                   contenido
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {course.content?.modules?.map((module: any, moduleIndex: number) => (
-                    <div key={module.id} className="border rounded-lg p-4">
+                  {(course.sections?.length ? course.sections : course.content?.modules || []).map((module: any, moduleIndex: number) => (
+                    <div key={module.id || moduleIndex} className="border rounded-lg p-4">
                       <h3 className="font-semibold text-lg mb-3">
-                        Módulo {moduleIndex + 1}: {module.title}
+                        Módulo {moduleIndex + 1}: {module.title || module.name || `Sección ${moduleIndex + 1}`}
                       </h3>
-                      <div className="space-y-2">
-                        {module.lessons?.map((lesson: any, lessonIndex: number) => (
-                          <div
-                            key={lesson.id}
-                            className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <Play className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{lesson.title}</span>
+                      {module.lessons?.length ? (
+                        <div className="space-y-2">
+                          {module.lessons?.map((lesson: any, lessonIndex: number) => (
+                            <div
+                              key={lesson.id}
+                              className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Play className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">{lesson.title}</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                <Clock className="h-3 w-3" />
+                                <span>{lesson.duration}min</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {lesson.type === "video"
+                                    ? "Video"
+                                    : lesson.type === "interactive"
+                                      ? "Interactivo"
+                                      : "Ejercicio"}
+                                </Badge>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-2 text-xs text-gray-500">
-                              <Clock className="h-3 w-3" />
-                              <span>{lesson.duration}min</span>
-                              <Badge variant="outline" className="text-xs">
-                                {lesson.type === "video"
-                                  ? "Video"
-                                  : lesson.type === "interactive"
-                                    ? "Interactivo"
-                                    : "Ejercicio"}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">Aún no hay lecciones en esta sección.</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -236,13 +258,13 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Estudiantes inscritos</span>
-                    <span className="font-semibold">1,234</span>
+                    <span className="font-semibold">{enrolledCount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Calificación promedio</span>
                     <div className="flex items-center space-x-1">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">4.8</span>
+                      <span className="font-semibold">{averageRating}</span>
                     </div>
                   </div>
                   <div className="flex justify-between">
