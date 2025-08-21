@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Clock, BookOpen, Users, Star } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import ClientWrapper from "@/components/wrappers/client-wrapper"
+import CoursesListMinimal from "@/components/courses/courses-list-minimal"
 
 export default async function CoursesPage() {
   const supabase = createClient()
@@ -18,7 +20,30 @@ export default async function CoursesPage() {
     redirect("/auth/login")
   }
 
-  // Fetch courses
+  const isAdmin = !!user.email?.includes("@alumno.buap.mx")
+
+  // If super user, render management-style list with edit/delete
+  if (isAdmin) {
+    return (
+      <ClientWrapper initialUser={user}>
+        <div className="min-h-screen bg-gray-50">
+          <div className="bg-white border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="flex flex-col gap-2">
+                <h1 className="text-3xl font-bold text-gray-900">Mis cursos</h1>
+                <p className="text-gray-600">Administra, edita o elimina tus cursos</p>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <CoursesListMinimal userId={user.id} />
+          </div>
+        </div>
+      </ClientWrapper>
+    )
+  }
+
+  // Fetch courses for non-admin catalog
   const { data: courses, error } = await ((supabase
     .from("courses") as any)
     .select("*")

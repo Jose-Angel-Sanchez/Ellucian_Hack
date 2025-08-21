@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/components/providers/auth-provider-enhanced"
+import { isMasterAdminEmail } from "@/lib/utils/isMasterAdmin"
 
 type Course = {
   id: string
@@ -12,10 +13,12 @@ type Course = {
   estimated_duration: number
   is_active: boolean
   created_at: string
+  created_by: string | null
 }
 
 export default function CoursesListMinimal({ userId }: { userId: string }) {
   const { user } = useAuth()
+  const [allCourses, setAllCourses] = useState<Course[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [hasOrphans, setHasOrphans] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -23,25 +26,22 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<{ title: string; category: string; difficulty_level: string; estimated_duration: number; } | null>(null)
   const supabase = createClient()
+  const isMaster = useMemo(() => isMasterAdminEmail(user?.email), [user?.email])
+  const [ownerFilter, setOwnerFilter] = useState<"mine" | "all">("mine")
+  const [search, setSearch] = useState("")
 
   const fetchCourses = async () => {
     try {
-      // Verificar que el usuario esté autenticado
-      if (!user) {
-        throw new Error("Usuario no autenticado")
-      }
-
-      // Traer cursos del usuario y detectar huérfanos (created_by NULL)
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .or(`created_by.eq.${user.id},created_by.is.null`)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      const list = data || []
-      setCourses(list.filter(c => c.created_by === user.id))
-      setHasOrphans(list.some(c => c.created_by === null))
+      if (!user) throw new Error("Usuario no autenticado")
+      const resp = await fetch('/api/courses/mine')
+      if (!resp.ok) throw new Error('No se pudieron cargar los cursos')
+      const json = await resp.json()
+      const list = (json?.courses || []) as Course[]
+      setAllCourses(list)
+      // default view: mine
+      const mine = list.filter(c => c.created_by === user.id)
+      setCourses(mine)
+      setHasOrphans(isMaster && list.some((c: any) => c.created_by === null))
     } catch (error) {
       console.error("Error fetching courses:", error)
       setMessage("Error al cargar los cursos")
@@ -54,7 +54,23 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
     if (user) {
       fetchCourses()
     }
-  }, [user]) // Dependencia del usuario del contexto
+  }, [user, isMaster]) // Dependencia del usuario del contexto
+
+  // Apply filters and search when inputs change
+  useEffect(() => {
+    if (!user) return
+    const base = ownerFilter === 'all' && isMaster ? allCourses : allCourses.filter(c => c.created_by === user.id)
+    const term = search.trim().toLowerCase()
+    const filtered = term
+      ? base.filter((c) =>
+          (c.title || '').toLowerCase().includes(term) ||
+          (c.category || '').toLowerCase().includes(term) ||
+          (c.difficulty_level || '').toLowerCase().includes(term) ||
+          (c.created_by || '').toLowerCase().includes(term)
+        )
+      : base
+    setCourses(filtered)
+  }, [ownerFilter, search, allCourses, isMaster, user])
 
   const claimOrphans = async () => {
     try {
@@ -157,7 +173,30 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4">Mis Cursos</h3>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <h3 className="text-lg font-semibold">{isMaster ? 'Cursos (Administrador)' : 'Mis Cursos'}</h3>
+        <div className="flex gap-2 items-center">
+          {isMaster && (
+            <select
+              value={ownerFilter}
+              onChange={(e) => setOwnerFilter(e.target.value as any)}
+              className="p-2 border rounded"
+              aria-label="Filtro de propietario"
+            >
+              <option value="mine">Mis cursos</option>
+              <option value="all">Todos</option>
+            </select>
+          )}
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={isMaster ? "Buscar por título, categoría o creador" : "Buscar por título o categoría"}
+            className="p-2 border rounded w-56"
+            aria-label="Buscar cursos"
+          />
+        </div>
+      </div>
       
       {message && (
         <div className={`p-3 rounded mb-4 ${
@@ -167,7 +206,7 @@ export default function CoursesListMinimal({ userId }: { userId: string }) {
         </div>
       )}
 
-      {hasOrphans && (
+  {hasOrphans && isMaster && (
         <div className="p-3 rounded mb-4 bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-between">
           <span>Hay cursos existentes sin propietario. Puedes reclamarlos para administrarlos.</span>
           <button onClick={claimOrphans} className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Reclamar</button>

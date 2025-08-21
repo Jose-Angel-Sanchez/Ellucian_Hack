@@ -106,7 +106,7 @@ export default function FAQPage() {
             Nuestro asistente de IA puede responder preguntas específicas sobre la plataforma, cursos y aprendizaje
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2">
           <div className="flex gap-2">
             <Textarea
               placeholder="Escribe tu pregunta aquí... Por ejemplo: '¿Cómo puedo crear una ruta de aprendizaje personalizada?'"
@@ -125,13 +125,13 @@ export default function FAQPage() {
           </div>
 
           {aiResponse && (
-            <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-amber-50">
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <Bot className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <div className="space-y-2">
-                    <div className="font-medium text-primary">Respuesta de la IA:</div>
-                    <p className="text-sm leading-relaxed">{aiResponse}</p>
+                    <div className="font-medium text-relaxed">Respuesta de la IA:</div>
+                    <p className="text-sm leading-relaxed ">{aiResponse}</p>
                   </div>
                 </div>
               </CardContent>
@@ -203,7 +203,7 @@ export default function FAQPage() {
               <HelpCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No se encontraron preguntas que coincidan con tu búsqueda.</p>
               <p className="text-sm mt-2">Intenta con otros términos o pregúntale a nuestra IA.</p>
-            </div>
+            </div>  
           )}
         </CardContent>
       </Card>

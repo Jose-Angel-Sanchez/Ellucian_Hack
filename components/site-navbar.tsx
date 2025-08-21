@@ -37,27 +37,27 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
           <nav className="hidden md:flex items-center gap-3">
             {user ? (
               <>
+                {user.email?.includes("@alumno.buap.mx") && (
+                  <>
+                    <Link href="/manage">
+                      <Button variant="ghost" className="hover:bg-blue-700 text-green-600">
+                        Gestión de Cursos
+                      </Button>
+                    </Link>
+                  </>
+                )}
+                <Link href="/admin/content">
+                  <Button variant="ghost">Contenido</Button>
+                </Link>
                 <Link href="/courses">
                   <Button variant="ghost">Cursos</Button>
                 </Link>
                 <Link href="/learning-paths">
                   <Button variant="ghost">Rutas</Button>
                 </Link>
-                {user.email?.includes("@alumno.buap.mx") && (
-                  <>
-                    <Link href="/manage">
-                      <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
-                        🚀 Gestión de Cursos
-                      </Button>
-                    </Link>
-                    <Link href="/manage">
-                      <Button variant="ghost">Administrar</Button>
-                    </Link>
-                    <Link href="/admin/content">
-                      <Button variant="ghost">Contenido</Button>
-                    </Link>
-                  </>
-                )}
+                <Link href="/faq">
+                  <Button variant="ghost">FAQ</Button>
+                </Link>
                 <form action={signOut}>
                   <Button variant="outline" type="submit">Cerrar Sesión</Button>
                 </form>
