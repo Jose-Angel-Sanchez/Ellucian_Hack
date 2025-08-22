@@ -47,7 +47,7 @@ export default async function LearnPage({ params }: LearnPageProps) {
   // Fetch linked content (via course_content -> content)
   const { data: linkedContent } = await supabase
     .from("course_content")
-    .select("content:content(id, title, type, file_url, description, transcription, duration, created_at)")
+    .select("content:content(id, title, type, file_url, file_path, description, transcription, duration, created_at)")
     .eq("course_id", course.id)
 
   const contentItems = (linkedContent || [])
