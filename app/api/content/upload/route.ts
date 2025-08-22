@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
 
     let { error: uploadErr } = await tryUpload()
     if (uploadErr && String(uploadErr.message).toLowerCase().includes("bucket not found")) {
-      // Ensure bucket exists and is public
-      await admin.storage.createBucket("content", { public: true }).catch(() => {})
-      await admin.storage.updateBucket("content", { public: true }).catch(() => {})
+      // Ensure bucket exists and keep it PRIVATE by default
+      await admin.storage.createBucket("content", { public: false }).catch(() => {})
+      await admin.storage.updateBucket("content", { public: false }).catch(() => {})
       // Retry once
       const retry = await tryUpload()
       uploadErr = retry.error
@@ -53,9 +53,12 @@ export async function POST(req: NextRequest) {
 
     if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 400 })
 
-    const { data: pub } = admin.storage.from("content").getPublicUrl(filePath)
+    // For private buckets, prefer returning a short-lived signed URL for immediate use
+    const { data: signed } = await admin.storage
+      .from("content")
+      .createSignedUrl(filePath, 60 * 60) // 1 hour TTL
 
-    return NextResponse.json({ file_path: filePath, public_url: pub?.publicUrl || null })
+    return NextResponse.json({ file_path: filePath, signed_url: signed?.signedUrl || null })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || String(err) }, { status: 500 })
   }

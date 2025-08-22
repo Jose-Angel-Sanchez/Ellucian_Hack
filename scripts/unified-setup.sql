@@ -379,3 +379,82 @@ CREATE POLICY "Anyone can view active courses"
     USING ((is_active = true AND deleted_at IS NULL) OR auth.uid() = created_by);
 
 COMMIT;
+
+-- Additional schema for content management (private-by-default storage support)
+BEGIN;
+
+-- Content table: stores uploaded assets metadata
+CREATE TABLE IF NOT EXISTS content (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    type TEXT NOT NULL CHECK (type IN ('video','audio','image','blog','misc')),
+    file_url TEXT,             -- optional (legacy or signed URL used immediately, not persisted long-term)
+    file_path TEXT,            -- storage path like "type/userId/timestamp.ext"
+    transcription TEXT,
+    duration INTEGER,
+    created_by UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Link table: associates content to courses
+CREATE TABLE IF NOT EXISTS course_content (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    content_id UUID REFERENCES content(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(course_id, content_id)
+);
+
+-- Triggers to keep updated_at fresh
+DROP TRIGGER IF EXISTS update_content_updated_at ON content;
+CREATE TRIGGER update_content_updated_at
+    BEFORE UPDATE ON content
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE content ENABLE ROW LEVEL SECURITY;
+ALTER TABLE course_content ENABLE ROW LEVEL SECURITY;
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_content_created_by ON content(created_by, created_at);
+CREATE INDEX IF NOT EXISTS idx_course_content_course ON course_content(course_id, content_id);
+
+-- RLS policies for content
+-- Owners can manage their content
+CREATE POLICY IF NOT EXISTS "Content owners can manage" ON content
+    FOR ALL TO authenticated
+    USING (auth.uid() = created_by)
+    WITH CHECK (auth.uid() = created_by);
+
+-- Users can view content if they own it OR are enrolled in a course that links it
+CREATE POLICY IF NOT EXISTS "View content if owner or enrolled" ON content
+    FOR SELECT TO authenticated
+    USING (
+        auth.uid() = created_by OR EXISTS (
+            SELECT 1 FROM course_content cc
+            JOIN user_progress up ON up.course_id = cc.course_id
+            WHERE cc.content_id = content.id AND up.user_id = auth.uid()
+        )
+    );
+
+-- RLS policies for course_content
+-- Course owners can manage links
+CREATE POLICY IF NOT EXISTS "Course owners manage links" ON course_content
+    FOR ALL TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM courses c WHERE c.id = course_content.course_id AND c.created_by = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM courses c WHERE c.id = course_content.course_id AND c.created_by = auth.uid()
+    ));
+
+-- Allow enrolled users to view course_content rows for their courses
+CREATE POLICY IF NOT EXISTS "Enrolled users can view course_content" ON course_content
+    FOR SELECT TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM user_progress up WHERE up.course_id = course_content.course_id AND up.user_id = auth.uid()
+    ));
+
+COMMIT;

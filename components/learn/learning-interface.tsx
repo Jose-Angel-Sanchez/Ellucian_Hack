@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -19,7 +19,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
+import { supabaseClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 interface LearningInterfaceProps {
@@ -31,10 +31,77 @@ interface LearningInterfaceProps {
     title: string
     type: string
     file_url?: string | null
+  file_path?: string | null
     description?: string | null
     transcription?: string | null
     duration?: number | null
   }>
+}
+
+function DerivedImage({
+  storage,
+  fileUrl,
+  filePath,
+  title,
+}: {
+  storage: any
+  fileUrl?: string | null
+  filePath?: string | null
+  title?: string | null
+}) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [derivedPath, setDerivedPath] = useState<string | null>(null)
+
+  // Try to infer storage path from a Supabase public URL if file_path is missing
+  useEffect(() => {
+    if (!filePath && fileUrl && fileUrl.includes("/storage/v1/object/")) {
+      try {
+        const u = new URL(fileUrl)
+        const p = u.pathname
+        // Look for '/object/' then '/content/' bucket segment
+        const idx = p.indexOf("/object/")
+        const contentIdx = p.indexOf("/content/")
+        if (idx !== -1 && contentIdx !== -1 && contentIdx > idx) {
+          const path = p.substring(contentIdx + "/content/".length)
+          if (path) setDerivedPath(path)
+        }
+      } catch {}
+    } else {
+      setDerivedPath(null)
+    }
+  }, [fileUrl, filePath])
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      let url: string | null = null
+      if (fileUrl) {
+        url = fileUrl
+      } else if (filePath || derivedPath) {
+        const fp = filePath || derivedPath
+        // Try public URL with transform first
+        const { data } = storage.getPublicUrl(fp, { transform: { width: 500, height: 600 } })
+        url = (data?.transformedUrl || data?.publicUrl) ?? null
+        // If no public URL (private bucket), create a signed URL
+        if (!url) {
+          const { data: s } = await storage.createSignedUrl(fp, 60 * 60, { transform: { width: 500, height: 600 } })
+          url = s?.signedUrl ?? null
+        }
+      }
+      if (!cancelled) setSrc(url)
+    }
+    run()
+    return () => { cancelled = true }
+  }, [storage, fileUrl, filePath, derivedPath])
+
+  const onError = async () => {
+    const fp = filePath || derivedPath
+    if (!fp) return
+    const { data } = await storage.createSignedUrl(fp, 60000, { transform: { width: 200, height: 200 } })
+    if (data?.signedUrl) setSrc(data.signedUrl)
+  }
+
+  if (!src) return <div className="text-gray-500">Sin URL de imagen</div>
+  return <img src={src} alt={title || "Imagen del curso"} className="max-h-[70vh] w-full object-contain rounded border" onError={onError} />
 }
 
 export default function LearningInterface({ course, userProgress, userId, contentItems = [] }: LearningInterfaceProps) {
@@ -44,7 +111,8 @@ export default function LearningInterface({ course, userProgress, userId, conten
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(userProgress.progress_percentage || 0)
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = supabaseClient()
+  const storage = useMemo(() => supabase.storage.from('content'), [supabase])
 
   // Build modules from explicit course.content or fallback to linked content items
   const modules = (course.content?.modules && course.content?.modules.length > 0)
@@ -56,6 +124,7 @@ export default function LearningInterface({ course, userProgress, userId, conten
             type: c.type || 'video',
             duration: c.duration || 5,
             file_url: c.file_url,
+            file_path: c.file_path,
           })) }]
         : [])
   const currentModule = modules[currentModuleIndex]
@@ -357,19 +426,20 @@ export default function LearningInterface({ course, userProgress, userId, conten
                 </div>
               )}
 
-              {currentLesson.type === "image" && (
+              {(
+                currentLesson.type === "image" ||
+                (typeof currentLesson.file_url === 'string' && /\.(png|jpe?g|gif|webp|svg)$/i.test(currentLesson.file_url)) ||
+                (typeof currentLesson.file_path === 'string' && /\.(png|jpe?g|gif|webp|svg)$/i.test(currentLesson.file_path))
+              ) && (
                 <div className="w-full max-w-4xl">
                   <div className="w-full flex items-center justify-center mb-6">
-                    {/* Use a plain img so no Next/Image remote config is required */}
-                    {currentLesson.file_url ? (
-                      <img
-                        src={currentLesson.file_url}
-                        alt={currentLesson.title || "Imagen del curso"}
-                        className="max-h-[70vh] w-full object-contain rounded border"
-                      />
-                    ) : (
-                      <div className="text-gray-500">Sin URL de imagen</div>
-                    )}
+                    {/* Prefer existing URL, else derive from file_path with transform; on error, signed fallback */}
+                    <DerivedImage
+                      storage={storage}
+                      fileUrl={currentLesson.file_url}
+                      filePath={currentLesson.file_path}
+                      title={currentLesson.title}
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-600">Visualiza la imagen y marca como completado cuando termines.</div>

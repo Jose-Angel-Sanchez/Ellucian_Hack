@@ -135,8 +135,9 @@ export default function ContentUploader({ userId, defaultCourseIds = [], lockToC
 
     setIsUploading(true)
     try {
-      let phase: "upload" | "insert" | "none" = "none"
-      let fileUrl = ""
+  let phase: "upload" | "insert" | "none" = "none"
+  // For private buckets we won't persist a temporary signed URL in DB
+  let fileUrl: string | null = null
       let filePathSaved = ""
 
       if (file) {
@@ -150,9 +151,9 @@ export default function ContentUploader({ userId, defaultCourseIds = [], lockToC
           const txt = await upResp.text().catch(() => "")
           throw new Error(`Error al subir al Storage: ${txt || upResp.statusText}`)
         }
-        const up = await upResp.json().catch(() => ({} as any))
-        filePathSaved = up.file_path || ""
-        fileUrl = up.public_url || ""
+  const up = await upResp.json().catch(() => ({} as any))
+  filePathSaved = up.file_path || ""
+  // signed_url is returned for immediate preview use if needed, but we don't persist it
       }
 
       phase = "insert"
@@ -163,7 +164,7 @@ export default function ContentUploader({ userId, defaultCourseIds = [], lockToC
           title,
           description,
           type: contentType,
-          file_url: fileUrl || null,
+          file_url: fileUrl,
           file_path: filePathSaved || null,
           transcription: transcription || null,
           duration: minutes,

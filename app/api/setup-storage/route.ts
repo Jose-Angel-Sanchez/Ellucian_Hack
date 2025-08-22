@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const required = [
-      { id: "content", public: true },
+      { id: "content", public: false },
       { id: "courses", public: true },
     ]
 
