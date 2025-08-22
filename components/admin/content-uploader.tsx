@@ -190,6 +190,11 @@ export default function ContentUploader({ userId, defaultCourseIds = [], lockToC
         description: "El contenido se ha subido correctamente.",
       })
 
+      // Notificar a otras vistas que el contenido cambió
+      try {
+        window.dispatchEvent(new CustomEvent("content:changed", { detail: { type: "created" } }))
+      } catch {}
+
   // Limpiar formulario
       setTitle("")
       setDescription("")

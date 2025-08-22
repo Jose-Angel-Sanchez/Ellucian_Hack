@@ -2,7 +2,7 @@ import { checkSuperUser } from "../../../lib/utils/checkSuperUser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/server"
 import ContentUploader from "@/components/admin/content-uploader"
-import ContentList from "@/components/admin/content-list"
+import ContentList from "@/components/admin/content-list-improved"
 
 export default async function AdminContentPage() {
   const user = await checkSuperUser()
