@@ -102,22 +102,8 @@ export default function ContentList({ userId }: { userId: string }) {
         throw new Error(txt || `HTTP ${resp.status}`)
       }
 
-      // Si el borrado fue exitoso, eliminar el archivo
-      if (contentToDelete.file_path) {
-        await supabase.storage
-          .from("content")
-          .remove([contentToDelete.file_path])
-      } else if (contentToDelete.file_url) {
-        const url = new URL(contentToDelete.file_url)
-        const parts = url.pathname.split("/")
-        const bucketIndex = parts.findIndex((p) => p === "content")
-        const path = bucketIndex >= 0 ? parts.slice(bucketIndex + 1).join("/") : ""
-        if (path) {
-          await supabase.storage
-            .from("content")
-            .remove([path])
-        }
-      }
+  // Notificar a otras vistas que el contenido cambió
+  try { window.dispatchEvent(new CustomEvent("content:changed", { detail: { type: "deleted", id } })) } catch {}
 
       toast({
         title: "Contenido eliminado",
@@ -166,6 +152,8 @@ export default function ContentList({ userId }: { userId: string }) {
       })
 
       setIsDialogOpen(false)
+  // Notificar para refrescar otras vistas
+  try { window.dispatchEvent(new CustomEvent("content:changed", { detail: { type: "updated", id: editingContent.id } })) } catch {}
       await fetchContents() // Recargar lista
     } catch (error) {
       console.error("Error al actualizar:", error)

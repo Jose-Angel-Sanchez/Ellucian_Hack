@@ -141,28 +141,18 @@ export default function ContentUploader({ userId, defaultCourseIds = [], lockToC
 
       if (file) {
         phase = "upload"
-        const fileExt = file.name.split(".").pop()
-        const filePath = `${contentType}/${userId}/${Date.now()}.${fileExt}`
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("content")
-          .upload(filePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: file.type || undefined,
-          })
-
-        if (uploadError) {
-          const msg = getErrorMessage(uploadError)
-          throw new Error(`Error al subir al Storage: ${msg}`)
+        // Use server API to bypass Storage RLS safely
+        const form = new FormData()
+        form.append("file", file)
+        form.append("type", contentType)
+        const upResp = await fetch("/api/content/upload", { method: "POST", body: form })
+        if (!upResp.ok) {
+          const txt = await upResp.text().catch(() => "")
+          throw new Error(`Error al subir al Storage: ${txt || upResp.statusText}`)
         }
-
-        const { data: publicData } = supabase.storage
-          .from("content")
-          .getPublicUrl(filePath)
-
-        fileUrl = publicData?.publicUrl || ""
-        filePathSaved = filePath
+        const up = await upResp.json().catch(() => ({} as any))
+        filePathSaved = up.file_path || ""
+        fileUrl = up.public_url || ""
       }
 
       phase = "insert"

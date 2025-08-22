@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   Volume2,
   Settings,
+  Image as ImageIcon,
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -49,10 +50,10 @@ export default function LearningInterface({ course, userProgress, userId, conten
   const modules = (course.content?.modules && course.content?.modules.length > 0)
     ? course.content.modules
     : (contentItems.length > 0
-        ? [{ id: 'linked-1', title: 'Contenido del curso', lessons: contentItems.map((c, idx) => ({
+        ? [{ id: 'linked-1', title: 'Contenido del curso', lessons: contentItems.map((c) => ({
             id: c.id,
             title: c.title,
-            type: c.type === 'image' ? 'interactive' : (c.type || 'video'),
+            type: c.type || 'video',
             duration: c.duration || 5,
             file_url: c.file_url,
           })) }]
@@ -125,6 +126,8 @@ export default function LearningInterface({ course, userProgress, userId, conten
     switch (type) {
       case "video":
         return <Play className="h-4 w-4" />
+      case "image":
+        return <ImageIcon className="h-4 w-4" />
       case "interactive":
         return <Settings className="h-4 w-4" />
       case "exercise":
@@ -138,6 +141,8 @@ export default function LearningInterface({ course, userProgress, userId, conten
     switch (type) {
       case "video":
         return "Video"
+      case "image":
+        return "Imagen"
       case "interactive":
         return "Interactivo"
       case "exercise":
@@ -349,6 +354,30 @@ export default function LearningInterface({ course, userProgress, userId, conten
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Completar Actividad
                   </Button>
+                </div>
+              )}
+
+              {currentLesson.type === "image" && (
+                <div className="w-full max-w-4xl">
+                  <div className="w-full flex items-center justify-center mb-6">
+                    {/* Use a plain img so no Next/Image remote config is required */}
+                    {currentLesson.file_url ? (
+                      <img
+                        src={currentLesson.file_url}
+                        alt={currentLesson.title || "Imagen del curso"}
+                        className="max-h-[70vh] w-full object-contain rounded border"
+                      />
+                    ) : (
+                      <div className="text-gray-500">Sin URL de imagen</div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">Visualiza la imagen y marca como completado cuando termines.</div>
+                    <Button onClick={markLessonComplete} className="bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Marcar como Completado
+                    </Button>
+                  </div>
                 </div>
               )}
 
